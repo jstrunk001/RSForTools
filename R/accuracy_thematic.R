@@ -161,7 +161,6 @@ accuracy_thematic = function(
 
   #load up results
   res_in0=list()
-  #res_in0$gb = greenbrown::AccuracyAssessment(table(pred_in,obs_in))
   res_in0$caret = caret::confusionMatrix(pred_in, obs_in, dnn = c("Prediction", "Reference"))[]
   if(is.null(nrow(res_in0$caret$byClass))) res_in0$F1 = res_in0$caret$byClass["F1"]
   else if(nrow(res_in0$caret$byClass)>1) res_in0$F1 = median(res_in0$caret$byClass[,"F1"],na.rm = T)
