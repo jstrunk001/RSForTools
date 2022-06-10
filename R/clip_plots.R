@@ -267,15 +267,15 @@ clip_plots=function(
 
     }
     #match projections - dtm
-    st_crs(dtm_in) = st_crs(x)
+    crs(dtm_in) = crs(x)
     st_crs(las_in) = st_crs(x)
 
     #clip dtm with buffer and las
-    dtm_poly=try(crop(dtm_in,st_buffer(x,20)))
-    las_poly=clip_roi(las_in, x , inside = TRUE)
+    dtm_poly = try(crop(dtm_in,st_buffer(x,20)))
+    las_poly = clip_roi(las_in, x , inside = TRUE)
 
     #cat error
-    if(class(dtm_poly)=="try-error"){warning("plot and dem do not intersect, plot: ",x@data[,1]);return()}
+    if(class(dtm_poly)=="try-error"){ warning("plot and dem do not intersect, plot: ",x@data[,1]);return() }
 
     #clean up
     rm(las_in); gc()
