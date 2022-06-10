@@ -51,5 +51,3 @@ Imports:
         ,sqldf
         ,Thermimage
         ,uuid
-Suggests:
-        greenbrown   

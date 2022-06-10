@@ -21,7 +21,7 @@
 #'
 #'@param pred thematic predictions
 #'@param obs thematic observations (measured theme such as forest / mixed / nonforest)
-#'@param yMat matrix of some response with column headings matching thematic data 
+#'@param yMat matrix of some response with column headings matching thematic data
 #'@param yPropDir direction to compute proportion (column or row) see apply
 #'@param do_balance balance observations by group before computing accuracy
 #'@param balance_min what should the minimum number of observations in a group be to balance
@@ -111,11 +111,11 @@
 
 
 #'
-#'@import MLmetrics mltools greenbrown caret
+#'@import MLmetrics mltools caret
 #'
 #'@export
 #
-#'@seealso \code{\link{mltools::mcc}}\cr \code{\link{greenbrown::AccuracyAssessment}}\cr \code{\link{MLmetrics::F1_Score}}\cr \code{\link{caret::confusionMatrix}}\cr
+#'@seealso \code{\link{mltools::mcc}}\cr  \code{\link{MLmetrics::F1_Score}}\cr \code{\link{caret::confusionMatrix}}\cr
 
 #Desired upgrades to this function:
 #
@@ -146,9 +146,9 @@ accuracy_thematic = function(
   unq_levels_in = unique(c(as.character(unlist(obs)),as.character(unlist(pred))))
 
   #make sure everything is a factor
-  #if(class(pred) == "factor") pred_in = pred else 
+  #if(class(pred) == "factor") pred_in = pred else
     pred_in = factor(as.character(unlist(pred)), levels = unq_levels_in, labels = unq_levels_in)
-  #if(class(obs) == "factor") obs_in = obs else 
+  #if(class(obs) == "factor") obs_in = obs else
     obs_in = factor(as.character(unlist(obs)), levels = unq_levels_in, labels = unq_levels_in)
 
   #balance sample on observed data - optional
@@ -161,7 +161,7 @@ accuracy_thematic = function(
 
   #load up results
   res_in0=list()
-  res_in0$gb = greenbrown::AccuracyAssessment(table(pred_in,obs_in))
+  #res_in0$gb = greenbrown::AccuracyAssessment(table(pred_in,obs_in))
   res_in0$caret = caret::confusionMatrix(pred_in, obs_in, dnn = c("Prediction", "Reference"))[]
   if(is.null(nrow(res_in0$caret$byClass))) res_in0$F1 = res_in0$caret$byClass["F1"]
   else if(nrow(res_in0$caret$byClass)>1) res_in0$F1 = median(res_in0$caret$byClass[,"F1"],na.rm = T)
@@ -182,7 +182,7 @@ accuracy_thematic = function(
     agg_in[-1,][is.na(agg_in[-1,])]=0
     names(agg_in) = gsub("NA[.]","NA",names(agg_in))
     row.names(agg_in ) = agg_in$pred_in
-    
+
     #compute proportions
     #prop_in = data.frame(agg_in[,1,drop=F],t(apply(agg_in[,-1,drop=F],1,function(x) if(sum(x,na.rm=T) > 0) round(x / sum(x,na.rm=T),3) else x )))
     if(yPropDir[1]==1) prop_in = data.frame(agg_in[,1,drop=F],t(apply(agg_in[,-1,drop=F],1,function(x) if(sum(x,na.rm=T) > 0) round(x / sum(x,na.rm=T),3) else x )))
@@ -192,19 +192,19 @@ accuracy_thematic = function(
     names( prop_in ) = names(agg_in)
     #apply(prop_in[,-1],1,sum) #test column and row aggregates
     #apply(prop_in[,-1],2,sum)
-    
+
     nms_cat = as.character(prop_in[,1])
     nms_cat = nms_cat[nms_cat != "NA"]
     prop_diag = try(diag(as.matrix(prop_in[nms_cat,nms_cat])))
     prop_diag[is.na(prop_diag)] = 0
-    #add results 
+    #add results
     res_in0$ySum = agg_in
     res_in0$yProp = prop_in
     res_in0$yProp_diag_smry = try(quantile(prop_diag,c(0,.5,1)))
     names(res_in0$yProp_diag_smry) = paste("diag.p",gsub("[%]","",names(res_in0$yProp_diag_smry)),sep="")
-    
+
   }
-  
+
   #prepare results
   res_in0$res_table = data.frame(
                        overall = res_in0$caret$overall["Accuracy"]
@@ -213,7 +213,7 @@ accuracy_thematic = function(
                       ,mcc = res_in0$mcc
   )
 
-    
+
   #return results
   res_in0
 }
