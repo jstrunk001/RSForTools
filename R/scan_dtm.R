@@ -54,8 +54,9 @@ scan_dtm=function(
   ,proj4_name=c(NA,"NAD_1983_HARN_StatePlane_Washington_South_FIPS_4601_Feet")
   ,proj4=NA
   ,dir_dtm=""
+  ,dir_out = paste0(dir_dtm,"/manage_las/")
   ,recursive = F
-  ,pattern="[.]dtm$"
+  ,pattern="[.](dtm|tif|img)$"
   ,notes=""
   ,create_polys=T
   ,update = T
@@ -63,26 +64,28 @@ scan_dtm=function(
   ,debug=F
 
 ){
+  
 
+  #can only 
+  if(length(dir_out)>1) stop("length of \"dir_out\" greater than 1 - please specify a single output directory")
 
   require("uuid")
-  #require("RSQLite")
+  require("RSQLite")
 
   proc_date=Sys.time()
 
-  files_dtm = unlist(lapply(pattern,function(x) list.files(dir_dtm,full.names=T,recursive=recursive,include.dirs = FALSE,pattern=x,ignore.case = T)))
+  files_dtm = unlist(lapply(pattern,function(x) list.files(dir_dtm,full.names=T,recursive=recursive,include.dirs = FALSE,pattern=pattern,ignore.case = T)))
   if(length(files_dtm)==0) stop("'scan_dtm' argument dir_dtm is not a directory or is empty")
-  if(debug) files_dtm = files_dtm[1:50]
+  if(debug) files_dtm = sample(files_dtm,50)
 
 
   #prepare / read project_id file
-  project_id_folder=paste(dir_dtm,"/manage_dtm/",sep="")
-  project_id_csv=paste(project_id_folder,"project_id.csv",sep="")
-  dtm_id_csv=paste(project_id_folder,"dtm_id.csv",sep="")
-  dtm_gpkg=paste(project_id_folder,"manage_dtm.gpkg",sep="")
+  project_id_csv=paste(dir_out,"project_id.csv",sep="")
+  dtm_id_csv=paste(dir_out,"dtm_id.csv",sep="")
+  dtm_gpkg=file.path(dir_out,"manage_dtm.gpkg",sep="")
 
   #create out directory if missing
-  if(!dir.exists(project_id_folder)) try(dir.create(project_id_folder),silent=T)
+  if(!dir.exists(dir_out)) dir.create(dir_out,recursive=T)
 
   #create or connect to geopackage
   if(!update){
@@ -92,7 +95,7 @@ scan_dtm=function(
   tables_gpkg = dbListTables(con_gpkg)
 
   #Test for files
-  #exist_project_id_folder=dir.exists(project_id_folder)
+  #exist_dir_out=dir.exists(dir_out)
   exist_project_id_csv=file.exists(project_id_csv)
   exist_dtm_id_csv=file.exists(dtm_id_csv)
 
@@ -114,9 +117,9 @@ scan_dtm=function(
       ,project=project
       ,project_year=project_year
       ,load_date=proc_date
-      ,file_path=dir_dtm
+      ,file_path=dir_dtm #paste(dir_dtm,collapse=",")
       ,notes=notes
-      ,proj4_name = proj4_name
+      ,proj4_name = proj4_name[1]
     )
 
     #write to file
@@ -135,7 +138,7 @@ scan_dtm=function(
 
   #write little disclaimer / meta file to folder e.g. what is this crap in this folder
   disclaimer="This folder contains files used to inventory dtm files."
-  disclaimer_txt=paste(project_id_folder,"DISCLAIMER.txt",sep="")
+  disclaimer_txt=paste(dir_out,"DISCLAIMER.txt",sep="")
   writeLines(disclaimer,disclaimer_txt)
 
   #check if dtm files exist
@@ -218,8 +221,13 @@ scan_dtm=function(
     st_crs(sf_dtms) = dtm_id_df$proj4[1]
     
     #save outputs
-    if(dtm_update){
-      polys_rds=paste(project_id_folder,"dtm_polys.rds",sep="")
+    #current force overwrite
+    if(dtm_update & F){
+      # polys_rds=paste(dir_out,"dtm_polys.rds",sep="")
+      # try(sf::st_write(obj = sf_dtms , dsn = dtm_gpkg , layer = "dtm_polys", driver="GPKG" , append=FALSE ))
+      # try(saveRDS(sf_dtms,polys_rds))
+    }else{
+      polys_rds=paste(dir_out,"dtm_polys.rds",sep="")
       try(sf::st_write(obj = sf_dtms , dsn = dtm_gpkg , layer = "dtm_polys", driver="GPKG" , append=FALSE ))
       try(saveRDS(sf_dtms,polys_rds))
     }

@@ -55,8 +55,9 @@ scan_las=function(
     ,proj4_name = NA #"NAD_1983_HARN_StatePlane_Washington_South_FIPS_4601_Feet"
     ,proj4 = NA #"1395 +proj=lcc +lat_1=47.33333333333334 +lat_2=45.83333333333334 +lat_0=45.33333333333334 +lon_0=-120.5 +x_0=500000.0001016001 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=us-ft +no_defs"
     ,dir_las = ""
+    ,dir_out = paste0(dir_las,"/manage_las/")
     ,recursive = F
-    ,pattern = "[.]la.$"
+    ,pattern = "[.]la(s|z)$"
     ,notes = ""
     ,create_polys = T
     ,return = F
@@ -68,19 +69,20 @@ scan_las=function(
   requireNamespace("sf")
 
 
+  if(length(dir_out)>1) stop("length of \"dir_out\" greater than 1 - please specify a single output directory")
+  
   proc_date=Sys.time()
 
   files_las = unlist(lapply(pattern,function(x) list.files(dir_las,full.names=T,recursive=recursive,include.dirs = FALSE,pattern=x,ignore.case = T)))
   if(length(files_las)==0) stop("'scan_las' argument dir_las is not a directory or is empty")
 
   #prepare / read project_id file
-  project_id_folder=paste(dir_las,"/manage_las/",sep="")
-  project_id_csv=paste(project_id_folder,"project_id.csv",sep="")
-  las_id_csv=paste(project_id_folder,"las_id.csv",sep="")
-  las_gpkg=paste(project_id_folder,"manage_las.gpkg",sep="")
+  project_id_csv=paste0(dir_out ,"project_id.csv")
+  las_id_csv=paste(dir_out,"las_id.csv",sep="")
+  las_gpkg=file.path(dir_out,"manage_las.gpkg",sep="")
 
-  #create output directory if missing
-  if(!dir.exists(project_id_folder)) dir.create(project_id_folder,recursive=T)
+  #create out directory if missing
+  if(!dir.exists(dir_out)) dir.create(dir_out,recursive=T)
 
   #get projection if missing - currently no good way to get proj4 simple name
   if(is.na(proj4)) proj4 = projection( lidR::readLASheader(files_las[1]))
@@ -90,7 +92,7 @@ scan_las=function(
   tables_gpkg = dbListTables(con_gpkg)
 
   #test for files
-  exist_project_id_folder=dir.exists(project_id_folder)
+  exist_dir_out=dir.exists(dir_out)
   exist_project_id_csv=file.exists(project_id_csv)
   exist_las_id_csv=file.exists(las_id_csv)
 
@@ -138,7 +140,7 @@ scan_las=function(
 
   #write little disclaimer / meta file to folder e.g. what is this crap in this folder
   disclaimer="This folder contains files used to inventory las/laz files."
-  disclaimer_txt=paste(project_id_folder,"DISCLAIMER.txt",sep="")
+  disclaimer_txt=paste(dir_out,"DISCLAIMER.txt",sep="")
   writeLines(disclaimer,disclaimer_txt)
 
   #check if las files exist / are already in las_id_df
@@ -179,9 +181,9 @@ scan_las=function(
 
   if(create_polys){
 
-    path_polys_rds=paste(project_id_folder,"las_polys.rds",sep="")
-    #path_polys_shp=paste(project_id_folder,"las_polys.shp",sep="")
-    #path_polys_gpkg=paste(project_id_folder,"manage_las.gpkg",sep="")
+    path_polys_rds=paste(dir_out,"las_polys.rds",sep="")
+    #path_polys_shp=paste(dir_out,"las_polys.shp",sep="")
+    #path_polys_gpkg=paste(dir_out,"manage_las.gpkg",sep="")
 
     bad_files=apply(las_id_df[,c("min_x","max_x","min_y","max_y")],1,function(x)any(is.na(x)) )
     las_id_df1=las_id_df[!bad_files,]

@@ -134,7 +134,10 @@ clip_plots=function(
     if(!id_field_plots %in% names(plot_polys_in@data)){stop("argument id_field_plots does not match a column in input plot data")}
     
     #fix row names
-    row.names(plot_polys_in)=as.character(plot_polys_in@data[,id_field_plots])
+    ids_in = as.character(plot_polys_in@data[,id_field_plots])
+    is_dup_ids = sum(duplicated(ids_in)) > 0
+    if(is_dup_ids) stop("Supplied ID field for clips is not unique - make non-redundant variable field name")
+    if(!is_dup_ids) row.names(plot_polys_in) = as.character(plot_polys_in@data[,id_field_plots])
 
     print("Get / create Plot Polys");print(Sys.time())
 
@@ -257,18 +260,24 @@ clip_plots=function(
     if(fix_dsm_bug) las_in@header@PHB['Header Size'] = 235
     if(grepl("[.]dtm$",dtm_files_in[1])){
       dtm_in = read_dtm(dtm_files_in)
-    } 
-    else{
+    }else{
+      
       if(length(dtm_files_in)>1) dtm_in = do.call(function(...)mosaic(... , fun=mean , na.rm=T , tolerance = 1.5), lapply(dtm_files_in,raster))
       else dtm_in = raster(dtm_files_in)
+      
     } 
+    #match projections - dtm
+    st_crs(dtm_poly) = st_crs(x)
+    st_crs(las_in) = st_crs(x)
     
+    #clip dtm with buffer and las
     dtm_poly=try(crop(dtm_in,st_buffer(x,20)))
-    
-    if(class(dtm_poly)=="try-error"){warning("plot and dem do not intersect, plot: ",x@data[,1]);return()}
-
     las_poly=clip_roi(las_in, x , inside = TRUE)
-
+    
+    #cat error 
+    if(class(dtm_poly)=="try-error"){warning("plot and dem do not intersect, plot: ",x@data[,1]);return()}
+    
+    #clean up
     rm(las_in); gc()
     
     #write empty file if there are no points in las_poly
@@ -282,6 +291,8 @@ clip_plots=function(
     if(height) las_hts = normalize_height(las_poly, dtm_poly)
     if(!height) las_hts = las_poly
 
+    browser()
+    
     #write to file
     if(!dir.exists(dir_out)) dir.create(dir_out)
 

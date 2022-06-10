@@ -79,7 +79,7 @@ project_create=function(
   ,dir_dtm=NA
   ,recurse_dtm = F
   ,recurse_las = F
-  ,path_gpkg_out="c:/lidar_projects/someProject_RSForInvt.gpkg"
+  ,dir_out="c:/lidar_projects/"
   ,layer_project = "RSForInvt_prj"
   ,layer_config = "RSForInvt_config"
   ,overwrite_project = T
@@ -118,7 +118,7 @@ project_create=function(
   warning("UPDATE ME!!! Allow me to 'update' intersections without complete reset")
 
   #create project folder
-  project_path=dirname(path_gpkg_out)
+  project_path = dir_out
   if(!dir.exists(project_path)) dir.create(project_path,recursive=T)
 
   #match tile size with pixel size
@@ -129,24 +129,24 @@ project_create=function(
   }
 
   #inventory las and dtms
-  if(do_scan_las) scan_las(project=project_las, project_year=las_year, dir_las=dir_las, create_polys=T , recursive = recurse_las , proj4 = proj4)
+  if(do_scan_las) scan_las(project=project_las, project_year=las_year, dir_las=dir_las, dir_out=project_path, create_polys=T , recursive = recurse_las , proj4 = proj4[1])
   print("scan_las");print(Sys.time())
-  if(do_scan_dtms) scan_dtm(project=project_dtm, project_year=dtm_year,dir_dtm=dir_dtm, recursive = recurse_dtm , proj4 = proj4)
+  if(do_scan_dtms) scan_dtm(project=project_dtm, project_year=dtm_year,dir_dtm=dir_dtm, dir_out=project_path, create_polys=T , recursive = recurse_dtm , proj4 = proj4[1])
   print("scan_dtm");print(Sys.time())
 
   #file names
-  path_dtm_proj=paste(dir_dtm,"/manage_dtm/manage_dtm.gpkg",sep="")
-  path_las_proj=paste(dir_las,"/manage_las/manage_las.gpkg",sep="")
+  path_dtm_proj=paste(dir_out,"/manage_dtm.gpkg",sep="")
+  path_las_proj=paste(dir_out,"/manage_las.gpkg",sep="")
 
   #read in las and dtm polygons
   dtm_polys=rgdal::readOGR(dsn = path_dtm_proj,"dtm_polys")
   las_polys=rgdal::readOGR(dsn = path_las_proj,"las_polys")
 
   #remove duplicates if present
-  if(duplicate_las == "remove"){
+  if(duplicate_las[1] == "remove"){
     las_polys = subset( las_polys , subset= !duplicated(las_polys$file_name) )
   }
-  if(duplicate_dtm == "remove"){
+  if(duplicate_dtm[1] == "remove"){
     dtm_polys = subset( dtm_polys , subset= !duplicated(dtm_polys$file_name) )
   }
 
@@ -237,7 +237,7 @@ project_create=function(
 
   #create config file
   df_config = data.frame(
-    path_gpkg_out = path_gpkg_out
+    dir_out = dir_out
     ,layer_project = layer_project
     ,layer_config  =  layer_config
     ,layer_las_buf = "las_tiles_bfr"
@@ -270,30 +270,36 @@ project_create=function(
     ,has_mask  = is.na(mask)
   )
 
-  #write project polygons
-  sp::proj4string(tile_polys1) = proj4_in
-  sf_proj = sf::st_as_sf(tile_polys1)
+  #prepare geopackage details
 
-  try(sf::st_write(obj = sf_proj , dsn = path_gpkg_out , layer = layer_project, driver="GPKG",  layer_options = c("OVERWRITE=yes") ))
+    #get projection
+    sp::proj4string(tile_polys1) = proj4_in
+    #convert to sf
+    sf_proj = sf::st_as_sf(tile_polys1)
+    #get output name
+    path_gpkg_out = paste0(dir_out,"/",layer_project,"_RSprj.gpkg")
+    
+    #write project polygons to FRESH geopackage - overwrite!
+    try(sf::st_write(obj = sf_proj , dsn = path_gpkg_out , layer = layer_project, driver="GPKG",  layer_options = c("OVERWRITE=yes") ))
 
-  #write dtm polygons
-  sp::proj4string(dtm_polys1) = proj4_in
-  sf_dtm_bfr = sf::st_as_sf(dtm_polys1)
-  try(sf::st_write(obj = sf_dtm_bfr , dsn = path_gpkg_out , layer = "dtm_tiles_bfr", driver="GPKG",  layer_options = c("OVERWRITE=yes") ))
+    #write dtm polygons to geopackage
+    sp::proj4string(dtm_polys1) = proj4_in
+    sf_dtm_bfr = sf::st_as_sf(dtm_polys1)
+    try(sf::st_write(obj = sf_dtm_bfr , dsn = path_gpkg_out , layer = "dtm_tiles_bfr", driver="GPKG",  layer_options = c("OVERWRITE=yes") ))
 
-  #write las polygons - fix names to remove "[.]"  and " "
-  las_polys2 = las_polys1
-  names(las_polys2@data) = gsub("[.]","_",names(las_polys2@data ))
-  names(las_polys2@data) = gsub(" ","_",names(las_polys2@data ))
-  las_polys2@data$file_path = normalizePath(as.character(las_polys1@data$file_path), winslash = "/")
-  sp::proj4string(las_polys2) = proj4_in
-  sf_las_bfr = sf::st_as_sf(las_polys2)
-  try(sf::st_write(obj = sf_las_bfr , dsn = path_gpkg_out , layer = "las_tiles_bfr", driver="GPKG",  layer_options = c("OVERWRITE=yes") ))
-
-  #write config table
-  sqlite_proj = RSQLite::dbConnect(RSQLite::SQLite(), path_gpkg_out)
-  smry_write_err = try(RSQLite::dbWriteTable(sqlite_proj ,layer_config , df_config, overwrite = T))
-  RSQLite::dbDisconnect(sqlite_proj)
+    #write las polygons - fix names to remove "[.]"  and " "
+    las_polys2 = las_polys1
+    names(las_polys2@data) = gsub("[.]","_",names(las_polys2@data ))
+    names(las_polys2@data) = gsub(" ","_",names(las_polys2@data ))
+    las_polys2@data$file_path = normalizePath(as.character(las_polys1@data$file_path), winslash = "/")
+    sp::proj4string(las_polys2) = proj4_in
+    sf_las_bfr = sf::st_as_sf(las_polys2)
+    try(sf::st_write(obj = sf_las_bfr , dsn = path_gpkg_out , layer = "las_tiles_bfr", driver="GPKG",  layer_options = c("OVERWRITE=yes") ))
+  
+    #write config table to geopackage
+    sqlite_proj = RSQLite::dbConnect(RSQLite::SQLite(), path_gpkg_out)
+    smry_write_err = try(RSQLite::dbWriteTable(sqlite_proj ,layer_config , df_config, overwrite = T))
+    RSQLite::dbDisconnect(sqlite_proj)
 
   #save RDS object for redundancy
   l_res = list(config=df_config , project_plys = tile_polys1 ,  dtm_tiles_bfr = dtm_polys1 ,  las_tiles_bfr = las_polys2)
