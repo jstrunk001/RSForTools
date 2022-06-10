@@ -101,7 +101,7 @@ clip_plots=function(
   if(!file.exists(dir_skip)) try(dir.create(dir_skip, recursive=T),silent=T)
 
   if(is.na(intersect_gpkg)){
-    
+
     dtm_sf = sf::st_read(project_gpkg,"dtm_tiles_bfr")
     las_sf = sf::st_read(project_gpkg,"las_tiles_bfr")
     if(do_plot) proj_polys = sf::st_read(project_gpkg,"RSForInvt_prj")
@@ -132,7 +132,7 @@ clip_plots=function(
     }
 
     if(!id_field_plots %in% names(plot_polys_in@data)){stop("argument id_field_plots does not match a column in input plot data")}
-    
+
     #fix row names
     ids_in = as.character(plot_polys_in@data[,id_field_plots])
     is_dup_ids = sum(duplicated(ids_in)) > 0
@@ -150,25 +150,25 @@ clip_plots=function(
       x_in[,"file_path"] = paste(x$file_path,collapse=",")
       x_in
     }
-    
+
     #intersect plots with dtms
     pl_dtm_sf = st_intersection(pl_sf, dtm_sf[,c("file_path")])
     spl_dtm = split(pl_dtm_sf, pl_dtm_sf[,id_field_plots,drop=T])
     pl_dtm_sf1 = do.call(rbind, lapply(spl_dtm, .fn_simplify))
     pl_dtm_sf2 = pl_dtm_sf1[,c(id_field_plots,"file_path"),drop=T]
-    
+
     #intersect plots with las
     pl_las_sf = st_intersection(pl_sf, las_sf[,c("file_path")])
     spl_las= split(pl_las_sf, pl_las_sf[,id_field_plots,drop=T])
     pl_las_sf1 = do.call(rbind, lapply(spl_las, .fn_simplify))
     pl_las_sf2 = pl_las_sf1[,c(id_field_plots,"file_path"),drop=T]
-    
+
     #merge together
     pl_dtm_las = merge(x = merge(pl_sf,pl_dtm_sf2,by = id_field_plots), pl_las_sf2, suffixes = c(".dtm",".las"),by = id_field_plots)
     pl_dtm_las[,"X"] = NULL
-    
+
   }else{
-    
+
     pl_dtm_las = st_read(plot_tile_intersect,"pl_dtm_las",stringsAsFactors=F)
 
   }
@@ -194,7 +194,7 @@ clip_plots=function(
   dir_overlap=file.path(dir_out,"plot_tile_overlap")
   if(!dir.exists(dir_overlap)) dir.create(dir_overlap)
   if(!file.exists(paste(dir_overlap,"pl_dtm_las_intersect.gpkg",sep="\\"))){
-    
+
     st_write(pl_dtm_las
                , dsn = file.path(dir_overlap,"pl_dtm_las_intersect.gpkg")
                , layer = "pl_dtm_las"
@@ -202,7 +202,7 @@ clip_plots=function(
                )
 
   }
-  
+
   print("split polygons");print(Sys.time())
   #clip points
   spl_plots=sp::split(pl_dtm_las,1:nrow(pl_dtm_las))
@@ -261,25 +261,25 @@ clip_plots=function(
     if(grepl("[.]dtm$",dtm_files_in[1])){
       dtm_in = read_dtm(dtm_files_in)
     }else{
-      
+
       if(length(dtm_files_in)>1) dtm_in = do.call(function(...)mosaic(... , fun=mean , na.rm=T , tolerance = 1.5), lapply(dtm_files_in,raster))
       else dtm_in = raster(dtm_files_in)
-      
-    } 
+
+    }
     #match projections - dtm
-    st_crs(dtm_poly) = st_crs(x)
+    st_crs(dtm_in) = st_crs(x)
     st_crs(las_in) = st_crs(x)
-    
+
     #clip dtm with buffer and las
     dtm_poly=try(crop(dtm_in,st_buffer(x,20)))
     las_poly=clip_roi(las_in, x , inside = TRUE)
-    
-    #cat error 
+
+    #cat error
     if(class(dtm_poly)=="try-error"){warning("plot and dem do not intersect, plot: ",x@data[,1]);return()}
-    
+
     #clean up
     rm(las_in); gc()
-    
+
     #write empty file if there are no points in las_poly
     is_skip = class(las_poly)!="LAS"
     if(!is_skip) is_skip = length(las_poly$X) == 0
@@ -291,8 +291,6 @@ clip_plots=function(
     if(height) las_hts = normalize_height(las_poly, dtm_poly)
     if(!height) las_hts = las_poly
 
-    browser()
-    
     #write to file
     if(!dir.exists(dir_out)) dir.create(dir_out)
 
