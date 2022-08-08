@@ -9,7 +9,7 @@ project_create(
   dir_dtm = NA,
   recurse_dtm = F,
   recurse_las = F,
-  path_gpkg_out = "c:/lidar_projects/someProject_RSForInvt.gpkg",
+  dir_out = "c:/lidar_projects/",
   layer_project = "RSForInvt_prj",
   layer_config = "RSForInvt_config",
   overwrite_project = T,

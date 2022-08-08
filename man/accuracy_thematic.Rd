@@ -125,7 +125,7 @@ pairs(res_all[,-(1:2)],col=as.factor(res_all[,1])
 
 }
 \seealso{
-\code{\link{mltools::mcc}}\cr \code{\link{greenbrown::AccuracyAssessment}}\cr \code{\link{MLmetrics::F1_Score}}\cr \code{\link{caret::confusionMatrix}}\cr
+\code{\link{mltools::mcc}}\cr  \code{\link{MLmetrics::F1_Score}}\cr \code{\link{caret::confusionMatrix}}\cr
 }
 \author{
 Jacob Strunk <Jacob.strunk@usda.gov>

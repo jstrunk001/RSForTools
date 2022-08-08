@@ -10,8 +10,9 @@ scan_las(
   proj4_name = NA,
   proj4 = NA,
   dir_las = "",
+  dir_out = paste0(dir_las, "/manage_las/"),
   recursive = F,
-  pattern = "[.]la.$",
+  pattern = "[.]la(s|z)$",
   notes = "",
   create_polys = T,
   return = F
