@@ -80,4 +80,6 @@ Revision History
 }
 \author{
 Jacob Strunk <Jstrunk@fs.fed.us>
+
+Jacob Strunk <Jstrunk@fs.fed.us>
 }

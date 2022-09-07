@@ -26,8 +26,11 @@
 #'
 #'@param path_rinex full path to single or multiple rinex file
 #'@param path_out full path to single or multiple output rinex file
-#'@param edits list of named vectors list(c(id="", value=""), c(id="", value="")) where id must exactly match a rinex header keyword and value is an appopriate value
+#'@param edits list of named vectors list(c(id="", value=""), c(id="", value="")) where id must exactly match a rinex header keyword and value is an appropriate value
+#'@param add list of named vectors list(c(id="", value=""), c(id="", value="")) where id must exactly match a rinex header keyword and value is an appropriate value
 #'@param version_rnx "3.05" only rinex version 3.05 is currently supported - or perhaps other versions where epochs are indicated with ">" symbol
+#'@param rinex_txt instead of providing path, provide rinex text directly
+#'@param return_rnx T/F should edited filed be returned as text
 #'
 #'@return
 #'  <Delete and Replace>
@@ -35,11 +38,9 @@
 #'@examples
 #'  <Delete and Replace>
 #'
-#'@import some_package some_package2
 #'
 #'@export
 #
-#'@seealso \code{\link{another_function}}\cr \code{\link{yet_another_function}}\cr
 
 #Desired upgrades to this function:
 #
@@ -56,38 +57,53 @@
 # nmsVec=function(x){x=paste("c('",paste(names(x),collapse="','"),"')",sep="");writeClipboard(x);return(x)}
 
 
-	rinex_header_edit = function( 
+	rinex_header_edit = function(
 													  path_rinex =NA
 													, path_out=NA
 													, edits = list(
 															#c(id = "MARKER NAME", value ="new_pt1")
+															c(id = "MARKER NAME", value ="some_project")
+															#,c(id  = "ANT # / TYPE", value ="-Unknown-           JAVTRIUMPH_2A   NONE ")
+														)
+													, adds=list(
+															#c(id = "MARKER NAME", value ="new_pt1")
 															c(id = "MARKER NUMBER", value ="1")
 															#,c(id  = "ANT # / TYPE", value ="-Unknown-           JAVTRIUMPH_2A   NONE ")
-														) 
-													, version_rnx="3.05" 
+														)
+													, version_rnx="3.05"
+													, rinex_txt = NA
+													, return_rnx = F
 		){
-		
-		
-		if(is.na(path_rinex)) stop("rinex file not provided")
-		if(is.na(path_out) & is.na(dir_out) ) stop("output rinex file not provided")
-			
+
+
+		if(is.na(path_rinex[1]) & is.na(rinex_txt[1])) stop("rinex file not provided")
+		if(is.na(path_out[1]) & (!return_rnx[1]) ) stop("output rinex file not provided")
+
 		if(version_rnx=="3.05" | version_rnx==3.05){
 
 			#read data
-			rinex_in = readLines(	all_rovers[1] )
-			
-			for(i in 1:length(edits)){
+			if(!is.na(path_rinex)) rinex_in = readLines(	path_rinex)
+      if(is.na(path_rinex[1]) & !is.na(rinex_txt[1])) rinex_in = rinex_txt
 
-				idx_i = which(grepl(edits[[i]]["id"], rinex_in))[1]
-				rinex_in[idx_i] = paste0(sprintf("%-60s", edits[[i]]["value"]), edits[[i]]["id"])
-				
+			if(!is.na(edits[1])){
+				for(i in 1:length(edits)){
+
+					idx_i = which(grepl(edits[[i]]["id"], rinex_in))
+					rinex_in[idx_i] = paste0(sprintf("%-60s", edits[[i]]["value"]), edits[[i]]["id"])
+
+				}
 			}
-			
+			if(!is.na(adds[1])){
+				for(i in 1:length(adds)){
+					rinex_in = c(rinex_in[1:4],paste0(sprintf("%-60s", adds[[i]]["value"]), adds[[i]]["id"]), rinex_in[5:length(rinex_in)])
+				}
+			}
+
 		}
-		
-		writeLines(rinex_in, path_out)
-		
-		
+
+		if(!is.na(path_out)) writeLines(rinex_in, path_out)
+    if(!is.na(return_rnx)) return(rinex_in)
+
 	}
 
 	#test code
@@ -95,5 +111,5 @@
 
 		all_rinex = list.files(dir_out, pattern="[.]..o",ignore.case=T,full.names=T)
 		rinex_header_edit(file.path(dir_out, paste0("test1_",basename(all_rinex[1])) ), file.path(dir_out, paste0("test1_edit_",basename(all_rinex[1])) )  )
-		
+
 	}
