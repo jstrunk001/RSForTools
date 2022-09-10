@@ -106,10 +106,10 @@
 
 	}
 
-	#test code
-	if(F){
-
-		all_rinex = list.files(dir_out, pattern="[.]..o",ignore.case=T,full.names=T)
-		rinex_header_edit(file.path(dir_out, paste0("test1_",basename(all_rinex[1])) ), file.path(dir_out, paste0("test1_edit_",basename(all_rinex[1])) )  )
-
-	}
+	# #test code
+	# if(F){
+	#
+	# 	all_rinex = list.files(dir_out, pattern="[.]..o",ignore.case=T,full.names=T)
+	# 	rinex_header_edit(file.path(dir_out, paste0("test1_",basename(all_rinex[1])) ), file.path(dir_out, paste0("test1_edit_",basename(all_rinex[1])) )  )
+	#
+	# }

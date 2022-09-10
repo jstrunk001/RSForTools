@@ -182,7 +182,8 @@
 
 		rinex_clip( path_rinex = all_rinex[1] , dir_out= dir_out , start_epoch=1 , finish_epoch=30 )
 		rinex_clip( path_rinex = all_rinex[1] , path_out= file.path(dir_out, paste0("test1_",basename(all_rinex[1])) ) , start_epoch=1 , finish_epoch=30 )
+		rinex_clip( path_rinex = all_rinex[1] , dir_out= dir_out[1] , start_epoch=1 , finish_epoch=60*15 )
 
 	}
 
-	rinex_clip( path_rinex = all_rinex[1] , dir_out= dir_out[1] , start_epoch=1 , finish_epoch=60*15 )
+

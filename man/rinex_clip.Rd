@@ -12,7 +12,8 @@ rinex_clip(
   start_epoch = 1,
   finish_epoch = NA,
   ignore.short.file = T,
-  version_rnx = "3.05"
+  version_rnx = "3.05",
+  return_rinex = F
 )
 }
 \arguments{

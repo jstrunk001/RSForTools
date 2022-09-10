@@ -7,8 +7,11 @@
 rinex_header_edit(
   path_rinex = NA,
   path_out = NA,
-  edits = list(c(id = "MARKER NUMBER", value = "1")),
-  version_rnx = "3.05"
+  edits = list(c(id = "MARKER NAME", value = "some_project")),
+  adds = list(c(id = "MARKER NUMBER", value = "1")),
+  version_rnx = "3.05",
+  rinex_txt = NA,
+  return_rnx = F
 )
 }
 \arguments{
@@ -16,9 +19,15 @@ rinex_header_edit(
 
 \item{path_out}{full path to single or multiple output rinex file}
 
-\item{edits}{list of named vectors list(c(id="", value=""), c(id="", value="")) where id must exactly match a rinex header keyword and value is an appopriate value}
+\item{edits}{list of named vectors list(c(id="", value=""), c(id="", value="")) where id must exactly match a rinex header keyword and value is an appropriate value}
 
 \item{version_rnx}{"3.05" only rinex version 3.05 is currently supported - or perhaps other versions where epochs are indicated with ">" symbol}
+
+\item{rinex_txt}{instead of providing path, provide rinex text directly}
+
+\item{return_rnx}{T/F should edited filed be returned as text}
+
+\item{add}{list of named vectors list(c(id="", value=""), c(id="", value="")) where id must exactly match a rinex header keyword and value is an appropriate value}
 }
 \value{
 <Delete and Replace>
