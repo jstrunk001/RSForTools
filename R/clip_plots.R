@@ -134,7 +134,7 @@ clip_plots=function(
 
   }else{
 
-    pl_dtm_las = st_read(plot_tile_intersect,"pl_dtm_las",stringsAsFactors=F)
+    pl_dtm_las = st_read(intersect_gpkg,"pl_dtm_las",stringsAsFactors=F)
 
   }
 
@@ -143,7 +143,14 @@ clip_plots=function(
     #plot(proj_polys[,1])
     #plot(pl_dtm_las[,1],col="red",add=T,lwd=10)
   }
-
+  if(!is.na(dir_dtm)){
+    spl_dtm = lapply(pl_dtm_las$file_path.dtm, function(x,newdir) file.path(newdir,basename(unlist(strsplit(x,",")))) , dir_dtm)
+    pl_dtm_las$file_path.dtm = sapply(spl_dtm, paste, collapse=",")
+  }
+  if(!is.na(dir_las)){
+    spl_las = lapply(pl_dtm_las$file_path.las, function(x,newdir) file.path(newdir,basename(unlist(strsplit(x,",")))) , dir_las)
+    pl_dtm_las$file_path.las = sapply(spl_las, paste, collapse=",")
+  }
   print("skip existing");print(Sys.time())
 
   #skip existing files
@@ -247,7 +254,7 @@ clip_plots=function(
     las_poly = clip_roi(las_in, x , inside = TRUE)
 
     #cat error
-    if(class(dtm_poly)=="try-error"){ warning("plot and dem do not intersect, plot: ",x@data[,1]);return() }
+    if(class(dtm_poly)=="try-error"){ warning("plot and dem do not intersect, plot: ",x[,1]);return() }
 
     #clean up
     rm(las_in); gc()
@@ -256,7 +263,7 @@ clip_plots=function(
     is_skip = class(las_poly)!="LAS"
     if(!is_skip) is_skip = length(las_poly$X) == 0
     if(is_skip){
-      skip_file=file.path(dir_out,"skip",paste(id,"_",x@data[1,id],".laz",sep=""))
+      skip_file=file.path(dir_out,"skip",paste(id,"_",x[1,id],".laz",sep=""))
       file.create(skip_file)
       return()
     }
@@ -271,7 +278,7 @@ clip_plots=function(
       err=try(writeLAS(las_hts,out_file_i))
       print(paste("finished writing",out_file_i))
     }else{
-      skip_file=file.path(dir_out,"skip",paste(id,"_",x@data[1,id],".laz",sep=""))
+      skip_file=file.path(dir_out,"skip",paste(id,"_",x[1,id],".laz",sep=""))
       file.create(skip_file)
     }
     gc()
