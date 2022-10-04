@@ -49,7 +49,7 @@
 #'@examples
 #'  <Delete and Replace>
 #'
-#'@import rgdal plyr rgeos raster lidR data.table parallel
+#'@import rgdal plyr rgeos raster lidR data.table parallel terra
 #'
 #'@export
 #
@@ -183,7 +183,8 @@ clip_plots=function(
   print("initiate clipping");print(Sys.time())
   if(n_core>1){
     clus=makeCluster(n_core)
-    clusterEvalQ(clus,library(RSForTools))
+    clusterEvalQ(clus,{lapply(list("lidR","RSForTools","raster","terra"),library,character.only =T)})
+    #clusterExport(cl = clus, varlist=list(".dup2",".try_clip_plots"), envir = .GlobalEnv)
     res=parLapply(clus,spl_plots,.try_clip_plots,dir_out = dir_out,height=height,id=id_field_plots,fix_dsm_bug=fix_dsm_bug)
     stopCluster(clus)
   }
@@ -193,7 +194,8 @@ clip_plots=function(
 
   }
 
-  #.try_clip_plots(x=spl_plots[[2]],dir_out = dir_out , height=height,id=id_field_plots,fix_dsm_bug=fix_dsm_bug)
+  #.try_clip_plots(x=spl_plots[[3]],dir_out = dir_out , height=height,id=id_field_plots,fix_dsm_bug=fix_dsm_bug)
+  #lapply(spl_plots[1:3],.try_clip_plots,dir_out = dir_out , height=height,id=id_field_plots,fix_dsm_bug=fix_dsm_bug)
   print("clip plots");print(Sys.time())
 
 
@@ -227,31 +229,43 @@ clip_plots=function(
 
   .clip_plots=function(x,id,dir_out,return=F,height=T, fix_dsm_bug = F){
 
-    if(interactive()){
-      require(lidR)
-      #require(lasR)
-      require(plyr)
-    }
+    #writeLines("#parse las","c:/temp/debug_clip_plots1.txt")
 
+    #parse las and dtm names into vectors
     las_files_in = grep("[.]la.$",as.character(unlist(strsplit(x[,"file_path.las",drop=T],",")[1])),value=T)
     dtm_files_in = grep("[.].{,4}$",unlist(strsplit(x[,"file_path.dtm",drop=T],",")[1]),value=T)
-    las_in=readLAS(files = las_files_in)
+    las_in=lidR::readLAS(files = las_files_in)
+
+    #writeLines("#parse las","c:/temp/debug_clip_plots2.txt")
+
     if(fix_dsm_bug) las_in@header@PHB['Header Size'] = 235
+
+    #handle DTMs
     if(grepl("[.]dtm$",dtm_files_in[1])){
       dtm_in = read_dtm(dtm_files_in)
     }else{
-
-      if(length(dtm_files_in)>1) dtm_in = do.call(function(...)mosaic(... , fun=mean , na.rm=T , tolerance = 1.5), lapply(dtm_files_in,raster))
-      else dtm_in = raster(dtm_files_in)
-
+      if(length(dtm_files_in)>1){
+        #create terra::vrt raster to point to multiple rasters, then covert to raster::raster format
+        temp_vrt = tempfile(fileext = ".vrt")
+        dtm_in = raster::raster(terra::vrt(dtm_files_in,temp_vrt,overwrite=T))
+      }else{
+        dtm_in = raster::raster(dtm_files_in)
+        }
     }
-    #match projections - dtm
-    crs(dtm_in) = crs(x)
-    st_crs(las_in) = st_crs(x)
+    #writeLines("#handle DTMs","c:/temp/debug_clip_plots3.txt")
+
+    #match projections - dtm and las
+    raster::crs(dtm_in) = sf::st_crs(x)
+    sf::st_crs(las_in) = sf::st_crs(x)
+
+    #writeLines("#match projections","c:/temp/debug_clip_plots4.txt")
 
     #clip dtm with buffer and las
-    dtm_poly = try(crop(dtm_in,st_buffer(x,20)))
-    las_poly = clip_roi(las_in, x , inside = TRUE)
+    dtm_poly = try(raster::crop(dtm_in,sf::st_buffer(x,20)))
+    las_poly = lidR::clip_roi(las_in, x , inside = TRUE)
+
+    #remove temporary vrt file
+    #if("temp_vrt" %in% ls()) unlink(temp_vrt)
 
     #cat error
     if(class(dtm_poly)=="try-error"){ warning("plot and dem do not intersect, plot: ",x[,1]);return() }
@@ -263,23 +277,35 @@ clip_plots=function(
     is_skip = class(las_poly)!="LAS"
     if(!is_skip) is_skip = length(las_poly$X) == 0
     if(is_skip){
-      skip_file=file.path(dir_out,"skip",paste(id,"_",x[1,id],".laz",sep=""))
+      skip_file=file.path(dir_out,"skip",paste(id,"_",x[1,id,drop=T],".laz",sep=""))
       file.create(skip_file)
+      print(paste("finished writing",skip_file))
+      gc()
       return()
     }
-    if(height) las_hts = normalize_height(las_poly, dtm_poly)
+    #writeLines("#write empty file","c:/temp/debug_clip_plots5.txt")
+
+    #subtract heights
+    if(height) las_hts = lidR::normalize_height(las_poly, dtm_poly)
     if(!height) las_hts = las_poly
+    #writeLines("#subtract heights","c:/temp/debug_clip_plots5b.txt")
 
     #write to file
-    if(!dir.exists(dir_out)) dir.create(dir_out)
+    if(!dir.exists(dir_out)) dir.create(dir_out,recursive=T)
 
+    #write las to files
     if(class(las_hts)=="LAS"){
       out_file_i=file.path(dir_out,paste(id,"_",x[1,id,drop=T],".laz",sep=""))
-      err=try(writeLAS(las_hts,out_file_i))
+      err=try(lidR::writeLAS(las_hts,out_file_i))
       print(paste("finished writing",out_file_i))
+      #writeLines("#write empty file","c:/temp/debug_clip_plots6.txt")
+
     }else{
+    #write skip file
       skip_file=file.path(dir_out,"skip",paste(id,"_",x[1,id],".laz",sep=""))
       file.create(skip_file)
+      print(paste("finished writing",skip_file))
+      #writeLines("#write skip file","c:/temp/debug_clip_plots7.txt")
     }
     gc()
 
