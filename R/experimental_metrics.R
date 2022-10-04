@@ -88,6 +88,8 @@ experimental_metrics = function(
     if(adjustz[1]=="zq01") z = z - quantile(z,.01)
   }
 
+
+
   if(!is.na(outlier[1])){
     outlier_ids = z < outlier[1] | z > outlier[2]
     z = z[!outlier_ids]
@@ -99,6 +101,7 @@ experimental_metrics = function(
     if(!is.na(r[1])) r = r[!outlier_ids]
     if(!is.na(g[1])) g = g[!outlier_ids]
     if(!is.na(b[1])) b = b[!outlier_ids]
+
   }
 
   mets_in = list()
@@ -112,16 +115,29 @@ experimental_metrics = function(
     y1 = y[z >= htcover]
     z1 = z[z >= htcover]
 
+    #enable non-fail if no points are above htcover
+    if(length(x1)==0){
+
+      x1 = rep(0, 2)
+      y1 = rep(0, 2)
+      z1 = rep(0, 2)
+
+      set_NA =T
+    }else{
+
+      set_NA = F
+    }
+
     rtxy = (x*y)^(1/2)
     rtxy1 = (x1*y1)^(1/2)
     rtxyz = (x*y*z)^(1/3)
     rtxyz1 = (x1*y1*z1)^(1/3)
     xyz=data.frame(x = round(x/resxy) *  resxy, y = round(y/resxy) * resxy, z = z)
     xyz1=data.frame(x = round(x1/resxy) *  resxy, y = round(y1/resxy) * resxy, z = z1)
-    combnsxy = count(data.frame(round(x/resxy), round(y/resxy)))
-    combnsxy1 = count(data.frame(round(x1/resxy), round(y1/resxyz)))
-    combnsxyz = count(data.frame(round(y/resxyz), round(x/resxyz), round(x/resxyz)))
-    combnsxyz1 = count(data.frame(round(y1/resxyz), round(x1/resxyz), round(z1/resxyz)))
+    combnsxy = plyr::count(data.frame(round(x/resxy), round(y/resxy)))
+    combnsxy1 = plyr::count(data.frame(round(x1/resxy), round(y1/resxyz)))
+    combnsxyz = plyr::count(data.frame(round(y/resxyz), round(x/resxyz), round(x/resxyz)))
+    combnsxyz1 = plyr::count(data.frame(round(y1/resxyz), round(x1/resxyz), round(z1/resxyz)))
 
     r1=raster(res=ressurf,xmn=floor(min(x)),xmx=floor(min(x)) + ceiling((max(x)-min(x))/ressurf)*ressurf,ymn=floor(min(y)),ymx=floor(min(y)) + ceiling((max(y)-min(y))/ressurf)*ressurf)
     ch=rasterize(cbind(x,y),r1,field=z,fun=function(x,...)quantile(x,.975,na.rm=T))
@@ -140,8 +156,8 @@ experimental_metrics = function(
     mets_in["zIQRat"] = round(100*mets_in[["zIQ"]]/ diff(range(z,na.rm=T)),2)
     mets_in["zCover"] = round(100*length(z1)/ length(z),2)
     mets_in["zCoverHt"] = htcover
-    mets_in[paste("zq",c(1,5,10,20,30,40,50,60,70,80,90,95,99),sep="")] = quantile(z1,c(1,5,10,20,30,40,50,60,70,80,90,95,99)/100)
-    mets_in[paste("zRat",zthresh,sep="")] = lapply(zthresh,function(thr,z1)round(100*sum(z>thr)/length(z1),2),z1)
+    mets_in[paste("zq",c(1,5,10,20,30,40,50,60,70,80,90,95,99),sep="")] = quantile(z1,c(1,5,10,20,30,40,50,60,70,80,90,95,99)/100,na.rm=T)
+    mets_in[paste("zRat",zthresh,sep="")] = lapply(zthresh,function(thr,z1)round(100*sum(z>thr,na.rm=T)/length(z1),2),z1)
 
     mets_in["xMin"] = min(x1,na.rm=T)
     mets_in["xMax"] = max(x1,na.rm=T)
@@ -185,17 +201,11 @@ experimental_metrics = function(
     mets_in["surfArea"] = surfaceArea(chspdf)
     mets_in["surfAreaRat"] = round(mets_in[["surfArea"]] / (sum(ch[]>0,na.rm=T)*ressurf^2)*100,2)
 
+    if(set_NA) mets_in[names(mets_in)] = NA
+
   }
 
   #other ways to compute metrics
-  if(F){
-    mets_in["xyarea"] = length(unique( round(y/resxy) + round(x/resxy) / 5000 )) * resxy^2
-    require(raster)
-    r1=raster(resxy=resxy,xmn=floor(min(x)),xmx=floor(min(x)) + ceiling((max(x)-min(x))/resxy)*resxy,ymn=floor(min(y)),ymx=floor(min(y)) + ceiling((max(y)-min(y))/resxy)*resxy)
-    mets_in["xyarea"] = length(unique(cellFromXY(r1,cbind(x,y))))*resxy*resxy
-
-  }
-
   return(mets_in)
 
 }
