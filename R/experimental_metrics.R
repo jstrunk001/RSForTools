@@ -24,7 +24,7 @@
 #'
 #'@author
 #'
-#'Jacob Strunk <Jstrunk@@fs.fed.us>
+#'Jacob Strunk <strunky@@gmail.com>
 #'
 #'@param x lidR object X vector : las1$X
 #'@param y lidR object Y vector : las1$Y
@@ -71,13 +71,14 @@ experimental_metrics = function(
   ,r=NA
   ,g=NA
   ,b=NA
-  ,resxy=20
+  ,resxy = 20
   ,resxyz = 20
-  ,ressurf=5
+  ,ressurf = 5
   ,htcover = 6
+  ,zqts = c(1,5,10,20,30,40,50,60,70,80,90,95,99)
   ,zthresh = c(3,6,12,20)
   ,adjustz = c("none","positive","min0","zq01")
-  ,outlier=c(min=NA,max=NA)
+  ,outlier = c(min=NA,max=NA)
   ){
 
   #adjust z values to e.g. set the minimum value to zero
@@ -88,8 +89,7 @@ experimental_metrics = function(
     if(adjustz[1]=="zq01") z = z - quantile(z,.01)
   }
 
-
-
+  #remove outlier points
   if(!is.na(outlier[1])){
     outlier_ids = z < outlier[1] | z > outlier[2]
     z = z[!outlier_ids]
@@ -104,8 +104,8 @@ experimental_metrics = function(
 
   }
 
+  #begin metric computations
   mets_in = list()
-
   if(!is.na(x[1]) & !is.na(y[1]) & !is.na(z[1])){
 
     requireNamespace("plyr")
@@ -128,24 +128,28 @@ experimental_metrics = function(
       set_NA = F
     }
 
+    #compute various multiplicative metrics, x,y,z
     rtxy = (x*y)^(1/2)
     rtxy1 = (x1*y1)^(1/2)
     rtxyz = (x*y*z)^(1/3)
     rtxyz1 = (x1*y1*z1)^(1/3)
-    xyz=data.frame(x = round(x/resxy) *  resxy, y = round(y/resxy) * resxy, z = z)
-    xyz1=data.frame(x = round(x1/resxy) *  resxy, y = round(y1/resxy) * resxy, z = z1)
+    xyz = data.frame(x = round(x/resxy) *  resxy, y = round(y/resxy) * resxy, z = z)
+    xyz1 = data.frame(x = round(x1/resxy) *  resxy, y = round(y1/resxy) * resxy, z = z1)
+
+    #compute various combinatorial metrics, used for area and volume
     combnsxy = plyr::count(data.frame(round(x/resxy), round(y/resxy)))
     combnsxy1 = plyr::count(data.frame(round(x1/resxy), round(y1/resxyz)))
     combnsxyz = plyr::count(data.frame(round(y/resxyz), round(x/resxyz), round(x/resxyz)))
     combnsxyz1 = plyr::count(data.frame(round(y1/resxyz), round(x1/resxyz), round(z1/resxyz)))
 
-    r1=raster(res=ressurf,xmn=floor(min(x)),xmx=floor(min(x)) + ceiling((max(x)-min(x))/ressurf)*ressurf,ymn=floor(min(y)),ymx=floor(min(y)) + ceiling((max(y)-min(y))/ressurf)*ressurf)
-    ch=rasterize(cbind(x,y),r1,field=z,fun=function(x,...)quantile(x,.975,na.rm=T))
+    #surface based metrics
+    r1 = raster::raster(res=ressurf,xmn=floor(min(x)),xmx=floor(min(x)) + ceiling((max(x)-min(x))/ressurf)*ressurf,ymn=floor(min(y)),ymx=floor(min(y)) + ceiling((max(y)-min(y))/ressurf)*ressurf)
+    ch = raster::rasterize(cbind(x,y),r1,field=z,fun=function(x,...)quantile(x,.975,na.rm=T))
     chspdf = as(ch,"SpatialPixelsDataFrame")
 
     #typical z metrics
     mets_in["zMin"] = min(z1,na.rm=T)
-    mets_in["zMinRat"] = round(100*mets_in[["zMin"]] / min(z,na.rm=T) ,2)
+    mets_in["zMinRat"] = abs(round(100*(mets_in[["zMin"]] - min(z,na.rm=T)) / min(z,na.rm=T) ,2))
     mets_in["zMax"] = max(z1,na.rm=T)
     mets_in["zMaxRat"] = round(100*mets_in[["zMax"]] / max(z,na.rm=T) , 2)
     mets_in["zSd"] = sd(z1,na.rm=T)
@@ -156,19 +160,28 @@ experimental_metrics = function(
     mets_in["zIQRat"] = round(100*mets_in[["zIQ"]]/ diff(range(z,na.rm=T)),2)
     mets_in["zCover"] = round(100*length(z1)/ length(z),2)
     mets_in["zCoverHt"] = htcover
-    mets_in[paste("zq",c(1,5,10,20,30,40,50,60,70,80,90,95,99),sep="")] = quantile(z1,c(1,5,10,20,30,40,50,60,70,80,90,95,99)/100,na.rm=T)
+    mets_in[paste("zq",zqts,sep="")] = quantile(z1,zqts/100,na.rm=T)
     mets_in[paste("zRat",zthresh,sep="")] = lapply(zthresh,function(thr,z1)round(100*sum(z>thr,na.rm=T)/length(z1),2),z1)
 
+    #add height band metrics between supplied height thresholds
+    for(i in 1:(length(zthresh)-1)){
+      nm_bnd_i = paste0("zBandHtRat_",zthresh[i],"_",zthresh[i+1])
+      mets_in[nm_bnd_i] = round(100*sum( z1>=zthresh[i] & z1<zthresh[i+1] ) / length(z1), 2)
+    }
+
+    #x metrics
     mets_in["xMin"] = min(x1,na.rm=T)
     mets_in["xMax"] = max(x1,na.rm=T)
     mets_in["xSd"] = sd(x1,na.rm=T)
     mets_in["xRatHt"] = round(100*diff(range(x1,na.rm=T)) / diff(range(x,na.rm=T)),2)
 
+    #y metrics
     mets_in["yMin"] = min(y1,na.rm=T)
     mets_in["yMax"] = max(y1,na.rm=T)
     mets_in["ySd"] = sd(y1,na.rm=T)
     mets_in["yRatHt"] = round(100*diff(range(y1,na.rm=T)) / diff(range(y,na.rm=T)),2)
 
+    #xy metrics
     mets_in["xyMinRt"] = min(rtxy1,na.rm=T)
     mets_in["xyMinRtRat"] = round(100*mets_in[["xyMinRt"]] / min(rtxy,na.rm=T),2)
     mets_in["xyMaxRt"] = max(rtxy1,na.rm=T)
@@ -179,8 +192,8 @@ experimental_metrics = function(
     mets_in["xyCvRtRat"] = round(100*mets_in[["xyCvRt"]] / cv(rtxy,na.rm=T),2)
     mets_in["xyCor"] = cor(x1,y1)
     mets_in["xyCorRat"] = round(100*mets_in[["xyCor"]] / cor(x,y),2)
-    mets_in["xyArea"] = nrow(combnsxy1) * resxy^2
 
+    #xyz metrics
     mets_in["xyzMinRt"] = min(rtxyz1)
     mets_in["xyzMinRtRat"] = round(100*mets_in[["xyzMinRt"]] / min(rtxyz,na.rm=T),2)
     mets_in["xyzMaxRt"] = max(rtxyz1)
@@ -192,6 +205,8 @@ experimental_metrics = function(
     mets_in["xyzCor"] = cor(rtxy1,z1)
     mets_in["xyzCorRat"] = round(100*mets_in[["xyzCor"]] / cor(rtxy,z),2)
 
+    #volume and area metrics
+    mets_in["xyArea"] = nrow(combnsxy1) * resxy^2
     mets_in["voxVol"] = nrow(combnsxyz1)* resxyz^3
     mets_in["voxVolRat"] = round(100*mets_in[["voxVol"]] / (nrow(combnsxyz)* resxyz^3),2)
     #compute volume between min / max for given raster cell:
@@ -201,13 +216,31 @@ experimental_metrics = function(
     mets_in["surfArea"] = surfaceArea(chspdf)
     mets_in["surfAreaRat"] = round(mets_in[["surfArea"]] / (sum(ch[]>0,na.rm=T)*ressurf^2)*100,2)
 
-    if(set_NA) mets_in[names(mets_in)] = NA
+    if(set_NA){
+      mets_in[names(mets_in)] = NA
 
+      #provide feasible metrics
+
+      #z based metrics
+      mets_in["zCover"] = 0
+      mets_in["zCoverHt"] = htcover
+      mets_in[paste("zRat",zthresh,sep="")] = 0
+      mets_in[grep("zBandHt",names(mets_in),value=T)] = 0
+
+      #xyz area and volume metrics
+      mets_in["xyArea"] = 0
+      mets_in["voxVol"] = 0
+      mets_in["gridVol"] = 0
+      mets_in["gridVolRat"] = 0
+      mets_in["areaCover"] = 0
+      mets_in["surfArea"] = 0
+      mets_in["surfAreaRat"] = 0
+
+    }
+
+    #other ways to compute metrics
+    return(mets_in)
   }
-
-  #other ways to compute metrics
-  return(mets_in)
-
 }
 
 # all_metrics = function(obj){
@@ -221,6 +254,7 @@ experimental_metrics = function(
 # }
 
 
+#some tests
 
 if(F) {
   require(lidR)
