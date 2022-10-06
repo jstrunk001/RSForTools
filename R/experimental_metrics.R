@@ -79,6 +79,7 @@ experimental_metrics = function(
   ,zthresh = c(3,6,12,20)
   ,adjustz = c("none","positive","min0","zq01")
   ,outlier = c(min=NA,max=NA)
+  ,stdmetrics = T
   ){
 
   #adjust z values to e.g. set the minimum value to zero
@@ -116,13 +117,14 @@ experimental_metrics = function(
     z1 = z[z >= htcover]
 
     #enable non-fail if no points are above htcover
-    if(length(x1)==0){
+    if(length(x1)<5 | diff(range(x1))==0 ){
 
-      x1 = rep(0, 2)
-      y1 = rep(0, 2)
-      z1 = rep(0, 2)
+      x1 = seq(0,5,1)
+      y1 = seq(0,5,1)
+      z1 = seq(0,5,1)
 
       set_NA =T
+
     }else{
 
       set_NA = F
@@ -143,9 +145,23 @@ experimental_metrics = function(
     combnsxyz1 = plyr::count(data.frame(round(y1/resxyz), round(x1/resxyz), round(z1/resxyz)))
 
     #surface based metrics
-    r1 = raster::raster(res=ressurf,xmn=floor(min(x)),xmx=floor(min(x)) + ceiling((max(x)-min(x))/ressurf)*ressurf,ymn=floor(min(y)),ymx=floor(min(y)) + ceiling((max(y)-min(y))/ressurf)*ressurf)
-    ch = raster::rasterize(cbind(x,y),r1,field=z,fun=function(x,...)quantile(x,.975,na.rm=T))
-    chspdf = as(ch,"SpatialPixelsDataFrame")
+    #make sure raster has at least 1 pixel, even if there is only one point
+    r1 = try(raster::raster(
+                            res=ressurf,xmn=floor(min(x))
+                            ,xmx=floor(min(x)) + max(ressurf,ceiling((max(x)-min(x))/ressurf)*ressurf)
+                            ,ymn=floor(min(y))
+                            ,ymx=min(y)+max(ressurf,floor(min(y)) + ceiling((max(y)-min(y))/ressurf)*ressurf)
+                            )
+             )
+    if(class(r1)=="try-error"){
+      r1 = NA
+      ch = NA
+      chspdf = NA
+    }else{
+      ch = raster::rasterize(cbind(x,y),r1,field=z,fun=function(x,...)quantile(x,.975,na.rm=T))
+      if(class(ch)=="try-error") browser()
+      chspdf = as(ch,"SpatialPixelsDataFrame")
+    }
 
     #typical z metrics
     mets_in["zMin"] = min(z1,na.rm=T)
@@ -154,8 +170,10 @@ experimental_metrics = function(
     mets_in["zMaxRat"] = round(100*mets_in[["zMax"]] / max(z,na.rm=T) , 2)
     mets_in["zSd"] = sd(z1,na.rm=T)
     mets_in["zSdRat"] = round(100*mets_in[["zSd"]] / sd(z,na.rm=T) ,2)
-    mets_in["zCv"] = cv(z1,na.rm=T)
-    mets_in["zCvRat"] = round(100*mets_in[["zCv"]] / cv(z,na.rm=T) ,2)
+    mets_in["zMean"] = mean(z1,na.rm=T)
+    mets_in["zMeanRat"] = round(100*mets_in[["zMean"]] / mean(z,na.rm=T) ,2)
+    mets_in["zCv"] = mets_in[["zSd"]]/ mets_in[["zMean"]]
+    mets_in["zCvRat"] = round(100*mets_in[["zCv"]] / (sd(z,na.rm=T)/mean(z,na.rm=T) ),2)
     mets_in["zIQ"] = diff(range(z1,na.rm=T))
     mets_in["zIQRat"] = round(100*mets_in[["zIQ"]]/ diff(range(z,na.rm=T)),2)
     mets_in["zCover"] = round(100*length(z1)/ length(z),2)
@@ -188,8 +206,10 @@ experimental_metrics = function(
     mets_in["xyMaxRtRat"] = round(100*mets_in[["xyMaxRt"]] / max(rtxy,na.rm=T),2)
     mets_in["xySdRt"] = sd(rtxy1,na.rm=T)
     mets_in["xySdRtRat"] = round(100*mets_in[["xySdRt"]] / sd(rtxy,na.rm=T),2)
-    mets_in["xyCvRt"] = cv(rtxy1,na.rm=T)
-    mets_in["xyCvRtRat"] = round(100*mets_in[["xyCvRt"]] / cv(rtxy,na.rm=T),2)
+    mets_in["xyMnRt"] = mean(rtxy1,na.rm=T)
+    mets_in["xyMnRtRat"] = round(100*mets_in[["xyMnRt"]] / mean(rtxy,na.rm=T),2)
+    mets_in["xyCvRt"] = mets_in[["xySdRt"]] / mets_in[["xyMnRt"]]
+    mets_in["xyCvRtRat"] = round(100*mets_in[["xyCvRt"]] / (sd(rtxy,na.rm=T) / mean(rtxy,na.rm=T)),2)
     mets_in["xyCor"] = cor(x1,y1)
     mets_in["xyCorRat"] = round(100*mets_in[["xyCor"]] / cor(x,y),2)
 
@@ -200,8 +220,10 @@ experimental_metrics = function(
     mets_in["xyzMaxRtRat"] = round(100*mets_in[["xyzMaxRt"]] / max(rtxyz,na.rm=T),2)
     mets_in["xyzSdRt"] = sd(rtxyz1)
     mets_in["xyzSdRtRat"] = round(100*mets_in[["xyzSdRt"]] / sd(rtxyz,na.rm=T),2)
-    mets_in["xyzCvRt"] = cv(rtxyz1)
-    mets_in["xyzCvRtRat"] = round(100*mets_in[["xyzCvRt"]] / cv(rtxyz,na.rm=T),2)
+    mets_in["xyzMnRt"] = mean(rtxyz1)
+    mets_in["xyzMnRtRat"] = round(100*mets_in[["xyzMnRt"]] / (sd(rtxyz,na.rm=T)/mean(rtxyz,na.rm=T)),2)
+    mets_in["xyzCvRt"] =  mets_in[["xyzSdRt"]] / mets_in[["xyzMnRt"]]
+    mets_in["xyzCvRtRat"] = round(100*mets_in[["xyzCvRt"]] / (sd(rtxyz,na.rm=T)/mean(rtxyz,na.rm=T)),2)
     mets_in["xyzCor"] = cor(rtxy1,z1)
     mets_in["xyzCorRat"] = round(100*mets_in[["xyzCor"]] / cor(rtxy,z),2)
 
@@ -213,32 +235,37 @@ experimental_metrics = function(
     mets_in["gridVol"] = sum(aggregate(z~x+y,data=xyz1,FUN = function(z,resxy)(max(z,na.rm=T) - min(z,na.rm=T))*resxy^2,resxy=resxy)[,3])
     mets_in["gridVolRat"] = round(100*mets_in[["gridVol"]] / sum(aggregate(z~x+y,data=xyz,FUN = function(z,resxy)(max(z,na.rm=T) - min(z,na.rm=T))*resxy^2,resxy=resxy)[,3]),2)
     mets_in["areaCover"] = round(100*mets_in[["xyArea"]] / ( nrow(combnsxy) * resxy^2 ),2)
-    mets_in["surfArea"] = surfaceArea(chspdf)
+    mets_in["surfArea"] = sp::surfaceArea(chspdf)
     mets_in["surfAreaRat"] = round(mets_in[["surfArea"]] / (sum(ch[]>0,na.rm=T)*ressurf^2)*100,2)
 
     if(set_NA){
-      mets_in[names(mets_in)] = NA
 
-      #provide feasible metrics
+      #mets_in[names(mets_in)] = NA
+      mets_in[names(mets_in)] = -9999
+      #provide feasible metrics with zero values?
 
-      #z based metrics
-      mets_in["zCover"] = 0
-      mets_in["zCoverHt"] = htcover
-      mets_in[paste("zRat",zthresh,sep="")] = 0
-      mets_in[grep("zBandHt",names(mets_in),value=T)] = 0
+      if(T){
+        #z based metrics
+        mets_in["zCover"] = 0
+        mets_in["zCoverHt"] = htcover
+        mets_in[paste("zRat",zthresh,sep="")] = 0
+        mets_in[grep("zBandHt",names(mets_in),value=T)] = 0
 
-      #xyz area and volume metrics
-      mets_in["xyArea"] = 0
-      mets_in["voxVol"] = 0
-      mets_in["gridVol"] = 0
-      mets_in["gridVolRat"] = 0
-      mets_in["areaCover"] = 0
-      mets_in["surfArea"] = 0
-      mets_in["surfAreaRat"] = 0
+        #xyz area and volume metrics
+        mets_in["xyArea"] = 0
+        mets_in["voxVol"] = 0
+        mets_in["gridVol"] = 0
+        mets_in["gridVolRat"] = 0
+        mets_in["areaCover"] = 0
+        mets_in["surfArea"] = 0
+        mets_in["surfAreaRat"] = 0
+      }
 
     }
+    if(length(unique(sapply(mets_in,class)))>1 ){
+      mets_in = sapply(mets_in, as.numeric)
+    }
 
-    #other ways to compute metrics
     return(mets_in)
   }
 }
