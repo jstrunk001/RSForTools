@@ -154,8 +154,8 @@ experimental_metrics = function(
                     ,ymax=floor(min(y)) + max(ressurf,ceiling((max(y)-min(y))/ressurf)*ressurf)
                     )
     ch = terra::rasterize(x=cbind(x,y),y=r1,values=z,fun=function(x,...)quantile(x,.975,na.rm=T))
-    chdf = as.data.frame(ch, xy=T)
-    chdfsp = SpatialPixelsDataFrame(points=chdf[,1:2], data=chdf[,3,drop=F])
+    chmat = as.matrix(ch)
+
 
     #typical z metrics
     mets_in["zMin"] = min(z1,na.rm=T)
@@ -229,8 +229,8 @@ experimental_metrics = function(
     mets_in["gridVol"] = sum(aggregate(z~x+y,data=xyz1,FUN = function(z,resxy)(max(z,na.rm=T) - min(z,na.rm=T))*resxy^2,resxy=resxy)[,3])
     mets_in["gridVolRat"] = round(100*mets_in[["gridVol"]] / sum(aggregate(z~x+y,data=xyz,FUN = function(z,resxy)(max(z,na.rm=T) - min(z,na.rm=T))*resxy^2,resxy=resxy)[,3]),2)
     mets_in["areaCover"] = round(100*mets_in[["xyArea"]] / ( nrow(combnsxy) * resxy^2 ),2)
-    mets_in["surfArea"] = sp::surfaceArea(chdfsp)
-    mets_in["surfAreaRat"] = round(mets_in[["surfArea"]] / (sum(!is.na(chdf[,3]))*ressurf^2)*100,2)
+    mets_in["surfArea"] = sp::surfaceArea( chmat , cellx = ressurf, celly = ressurf )
+    mets_in["surfAreaRat"] = round(mets_in[["surfArea"]] / (sum(!is.na(chmat))*ressurf^2)*100,2)
 
     if(set_NA){
 
