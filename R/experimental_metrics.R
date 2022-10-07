@@ -151,7 +151,7 @@ experimental_metrics = function(
                     ,xmin=floor(min(x))
                     ,xmax=floor(min(x)) + max(ressurf,ceiling((max(x)-min(x))/ressurf)*ressurf)
                     ,ymin=floor(min(y))
-                    ,ymax=min(y)+max(ressurf,floor(min(y)) + ceiling((max(y)-min(y))/ressurf)*ressurf)
+                    ,ymax=floor(min(y)) + max(ressurf,ceiling((max(y)-min(y))/ressurf)*ressurf)
                     )
     ch = terra::rasterize(x=cbind(x,y),y=r1,values=z,fun=function(x,...)quantile(x,.975,na.rm=T))
     chdf = as.data.frame(ch, xy=T)
