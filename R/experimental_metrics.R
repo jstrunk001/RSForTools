@@ -146,22 +146,16 @@ experimental_metrics = function(
 
     #surface based metrics
     #make sure raster has at least 1 pixel, even if there is only one point
-    r1 = try(raster::raster(
-                            res=ressurf,xmn=floor(min(x))
-                            ,xmx=floor(min(x)) + max(ressurf,ceiling((max(x)-min(x))/ressurf)*ressurf)
-                            ,ymn=floor(min(y))
-                            ,ymx=min(y)+max(ressurf,floor(min(y)) + ceiling((max(y)-min(y))/ressurf)*ressurf)
-                            )
-             )
-    if(class(r1)=="try-error"){
-      r1 = NA
-      ch = NA
-      chspdf = NA
-    }else{
-      ch = raster::rasterize(cbind(x,y),r1,field=z,fun=function(x,...)quantile(x,.975,na.rm=T))
-      if(class(ch)=="try-error") browser()
-      chspdf = as(ch,"SpatialPixelsDataFrame")
-    }
+    r1 = terra::rast(
+                    res=ressurf
+                    ,xmin=floor(min(x))
+                    ,xmax=floor(min(x)) + max(ressurf,ceiling((max(x)-min(x))/ressurf)*ressurf)
+                    ,ymin=floor(min(y))
+                    ,ymax=min(y)+max(ressurf,floor(min(y)) + ceiling((max(y)-min(y))/ressurf)*ressurf)
+                    )
+    ch = terra::rasterize(x=cbind(x,y),y=r1,values=z,fun=function(x,...)quantile(x,.975,na.rm=T))
+    chdf = as.data.frame(ch, xy=T)
+    chdfsp = SpatialPixelsDataFrame(points=chdf[,1:2], data=chdf[,3,drop=F])
 
     #typical z metrics
     mets_in["zMin"] = min(z1,na.rm=T)
@@ -235,8 +229,8 @@ experimental_metrics = function(
     mets_in["gridVol"] = sum(aggregate(z~x+y,data=xyz1,FUN = function(z,resxy)(max(z,na.rm=T) - min(z,na.rm=T))*resxy^2,resxy=resxy)[,3])
     mets_in["gridVolRat"] = round(100*mets_in[["gridVol"]] / sum(aggregate(z~x+y,data=xyz,FUN = function(z,resxy)(max(z,na.rm=T) - min(z,na.rm=T))*resxy^2,resxy=resxy)[,3]),2)
     mets_in["areaCover"] = round(100*mets_in[["xyArea"]] / ( nrow(combnsxy) * resxy^2 ),2)
-    mets_in["surfArea"] = sp::surfaceArea(chspdf)
-    mets_in["surfAreaRat"] = round(mets_in[["surfArea"]] / (sum(ch[]>0,na.rm=T)*ressurf^2)*100,2)
+    mets_in["surfArea"] = sp::surfaceArea(chdfsp)
+    mets_in["surfAreaRat"] = round(mets_in[["surfArea"]] / (sum(!is.na(chdf[,3]))*ressurf^2)*100,2)
 
     if(set_NA){
 
