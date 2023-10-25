@@ -61,27 +61,27 @@
 #
 #
 
-  experimental_metrics = function(
-    x=NA
-    ,y=NA
-    ,z=NA
-    ,i=NA
-    ,rn=NA
-    ,cl=NA
-    ,r=NA
-    ,g=NA
-    ,b=NA
-    ,resxy = 20
-    ,resxyz = 20
-    ,ressurf = 5
-    ,htcover = 6
-    ,zqts = c(1,5,10,20,30,40,50,60,70,80,90,95,99)
-    ,zthresh = c(3,6,12,20)
-    ,adjustz = c("none","positive","min0","zq01")
-    ,outlier = c(min=NA,max=NA)
-    ,stdmetrics = T
+experimental_metrics = function(
+  x=NA
+  ,y=NA
+  ,z=NA
+  ,i=NA
+  ,rn=NA
+  ,cl=NA
+  ,r=NA
+  ,g=NA
+  ,b=NA
+  ,resxy = 20
+  ,resxyz = 20
+  ,ressurf = 5
+  ,htcover = 6
+  ,zqts = c(1,5,10,20,30,40,50,60,70,80,90,95,99)
+  ,zthresh = c(3,6,12,20)
+  ,adjustz = c("none","positive","min0","zq01")
+  ,outlier = c(min=NA,max=NA)
+  ,stdmetrics = T
   ){
-
+tic("all")
   #adjust z values to e.g. set the minimum value to zero
   #especially useful with DAP over a coarse ground model...
   if(!is.na(z[1]))if(!is.null(adjustz[1]))if(!is.na(adjustz[1])){
@@ -141,11 +141,7 @@
     #compute various combinatorial metrics, used for area and volume
     combnsxy = plyr::count(data.frame(round(x/resxy), round(y/resxy)))
     combnsxy1 = plyr::count(data.frame(round(x1/resxy), round(y1/resxyz)))
-
-    #combinations of x, y, z - used for volume computation - all points
     combnsxyz = plyr::count(data.frame(round(y/resxyz), round(x/resxyz), round(x/resxyz)))
-
-    #combinations of x, y, z - used for volume computation - POINT ABOVE COVER_THRESH
     combnsxyz1 = plyr::count(data.frame(round(y1/resxyz), round(x1/resxyz), round(z1/resxyz)))
 
     #surface based metrics
@@ -226,43 +222,15 @@
     mets_in["xyzCorRat"] = round(100*mets_in[["xyzCor"]] / cor(rtxy,z),2)
 
     #volume and area metrics
-      #all points
-      #mets_in[["xyAreaAll"]] = nrow(combnsxy) * resxy^2 #DEPRECATED
-      mets_in[["gridAreaAll"]] = nrow(combnsxy) * resxy^2
-      #points above threshdol
-      #mets_in[["xyArea"]] = nrow(combnsxy1) * resxy^2 #DEPRECATED
-      mets_in[["gridArea"]] = nrow(combnsxy1) * resxy^2
-      #rescale using over ht threshold to all
-      mets_in["areaCover"] = round(100*mets_in[["xyArea"]] / mets_in[["xyAreaAll"]],2)
-      #rescale using plot area
-      mets_in["areaScl"] = round( 100 * mets_in[["xyArea"]] / mets_in[["xyAreaAll"]] ,2 )
-
-    #voxel volume
-      #all point
-      mets_in[["voxVolAll"]] = nrow(combnsxyz)* resxyz^3
-      #points above threshold
-      mets_in["voxVol"] = nrow(combnsxyz1)* resxyz^3
-      #rescale using over ht threshold to all
-      mets_in["voxVolRat"] = round(100*mets_in[["voxVol"]] / mets_in[["voxVolAll"]],2)
-      #rescale using plot area
-      mets_in["voxVolScl"] = round( 100 * mets_in[["voxVol"]] / mets_in[["xyAreaAll"]] ,2 )
-
-    #compute volume between min / max for given raster cell: - columnar volume between min/ma
-      #all point
-      mets_in[["gridVolAll"]] = sum(aggregate(z~x+y,data=xyz,FUN = function(z,resxy)(max(z,na.rm=T) - min(z,na.rm=T))*resxy^2,resxy=resxy)[,3])
-      #points above threshold
-      mets_in["gridVol"] = sum(aggregate(z~x+y,data=xyz1,FUN = function(z,resxy)(max(z,na.rm=T) - min(z,na.rm=T))*resxy^2,resxy=resxy)[,3])
-      #rescale using over ht threshold to all
-      mets_in["gridVolRat"] = round(100*mets_in[["gridVol"]] / mets_in[["gridVolAll"]],2)
-      #rescale using plot area
-      mets_in["gridVolScl"] = round( 100 * mets_in[["gridVol"]] / mets_in[["xyAreaAll"]],2 )
-
-    #compute surface area
-      mets_in["surfArea"] = sp::surfaceArea( chmat , cellx = ressurf, celly = ressurf )
-      #scale by planar area above height threshold
-      mets_in["surfAreaRat"] = round(100*mets_in[["surfArea"]] / mets_in[["xyArea"]] ,2)
-      #scale by plot area
-      mets_in["surfAreaScl"] = round(100*mets_in[["surfArea"]] / mets_in[["xyAreaAll"]],2)
+    mets_in["xyArea"] = nrow(combnsxy1) * resxy^2
+    mets_in["voxVol"] = nrow(combnsxyz1)* resxyz^3
+    mets_in["voxVolRat"] = round(100*mets_in[["voxVol"]] / (nrow(combnsxyz)* resxyz^3),2)
+    #compute volume between min / max for given raster cell:
+    mets_in["gridVol"] = sum(aggregate(z~x+y,data=xyz1,FUN = function(z,resxy)(max(z,na.rm=T) - min(z,na.rm=T))*resxy^2,resxy=resxy)[,3])
+    mets_in["gridVolRat"] = round(100*mets_in[["gridVol"]] / sum(aggregate(z~x+y,data=xyz,FUN = function(z,resxy)(max(z,na.rm=T) - min(z,na.rm=T))*resxy^2,resxy=resxy)[,3]),2)
+    mets_in["areaCover"] = round(100*mets_in[["xyArea"]] / ( nrow(combnsxy) * resxy^2 ),2)
+    mets_in["surfArea"] = sp::surfaceArea( chmat , cellx = ressurf, celly = ressurf )
+    mets_in["surfAreaRat"] = round(mets_in[["surfArea"]] / (sum(!is.na(chmat))*ressurf^2)*100,2)
 
     if(set_NA){
 
@@ -272,26 +240,26 @@
 
       if(T){
         #z based metrics
-        # mets_in["zCover"] = 0
-        # mets_in["zCoverHt"] = htcover
-        # mets_in[paste("zRat",zthresh,sep="")] = 0
-        # mets_in[grep("zBandHt",names(mets_in),value=T)] = 0
-        #
-        # #xyz area and volume metrics
-        # mets_in[["xyArea"]] = 0
-        # mets_in["voxVol"] = 0
-        # mets_in["gridVol"] = 0
-        # mets_in["gridVolRat"] = 0
-        # mets_in["areaCover"] = 0
-        # mets_in["surfArea"] = 0
-        # mets_in["surfAreaRat"] = 0
+        mets_in["zCover"] = 0
+        mets_in["zCoverHt"] = htcover
+        mets_in[paste("zRat",zthresh,sep="")] = 0
+        mets_in[grep("zBandHt",names(mets_in),value=T)] = 0
+
+        #xyz area and volume metrics
+        mets_in["xyArea"] = 0
+        mets_in["voxVol"] = 0
+        mets_in["gridVol"] = 0
+        mets_in["gridVolRat"] = 0
+        mets_in["areaCover"] = 0
+        mets_in["surfArea"] = 0
+        mets_in["surfAreaRat"] = 0
       }
 
     }
     if(length(unique(sapply(mets_in,class)))>1 ){
       mets_in = sapply(mets_in, as.numeric)
     }
-
+toc()
     return(mets_in)
   }
 }
@@ -322,7 +290,7 @@ if(F){
   test=list()
   test["test1"] = 1
   test
-  las1 = readLAS("c:/temp/id_36267.laz")
+  las1 = readLAS("D:\\Box\\sync\\R\\analyses\\wa_dsm_env_fia\\data\\plot_clips_ht\\plot_44.laz")
 
   test1 = lasmetrics(las1,.stdmetrics)
   test2 = lasmetrics(las1,.stdmetrics)
@@ -330,8 +298,6 @@ if(F){
   test3 = all_metrics(las1)
 
   test2 = lasmetrics(las1,experimental_metrics(X,Y,Z))
-
-  experimental_metrics(las1$X,las1$Y,las1$Z)
 
 
   m1 = grid_metrics(las, stdmetrics(X,Y,Z,Intensity,ReturnNumber,Classification,dz=1))

@@ -9,8 +9,8 @@ xy2FIApoly(
   names = c(plot = "plot", x = "x", y = "y"),
   create_polys = T,
   width = 24,
-  capStyle = "ROUND",
-  offx = c(`2` = 120, `3` = 103.923, `4` = -103.923),
+  endCapStyle = "ROUND",
+  offx = c(`2` = 0, `3` = 103.923, `4` = -103.923),
   offy = c(`2` = 120, `3` = -60, `4` = -60)
 )
 }
@@ -19,11 +19,11 @@ xy2FIApoly(
 
 \item{names}{link dataframe columns to variable names used by function}
 
-\item{create_polys}{TRUE / FALSE}
+\item{create_polys}{TRUE / FALSE create polygons or just return theoretical subplot centers}
 
 \item{width}{radius or side length  of subplot}
 
-\item{capStyle}{enable square or round plots}
+\item{endCapStyle}{enable square or round plots}
 
 \item{offx}{set x offsets to subplots 2-4}
 
@@ -52,18 +52,17 @@ supply fia plot centers, and have have Spatial Polygons Dataframe returned, wher
 \cr
 Revision History
 \tabular{ll}{
-1.0 \tab date and revisions.. \cr
+1.0 \tab 09/09/2022 Upgraded to sf added more parameters for output plot   \cr
 }
 }
 \examples{
 
-   res=xy2FIAplot(data.frame(plot=1:10, x=101:110*10000, y=101:110*10000),create_polys=T)
-   spplot(res[1,],zcol=1,aspect=1,scales=list(draw=T),key.space=list(x=0.2,y=0.9,corner=c(0,1)))
-   spplot(res)
+   res= xy2FIAplot(data.frame(plot=1:10, x=101:110*10000, y=101:110*10000),create_polys=T)
+   mapview::mapview(res)
 
 }
 \seealso{
-\code{\link{bbox2polys}}\cr
+\code{\link{bbox2polys}}\cr \code{\link{sf}}\cr \code{\link{st_buffer}}\cr
 }
 \author{
 Jacob Strunk <strunky@gmail.com>

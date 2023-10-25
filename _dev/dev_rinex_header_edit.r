@@ -100,7 +100,7 @@
 			}
 
 		}
-		if(version_rnx=="2" | version_rnx=="2" | version_rnx==2){
+		if(version_rnx=="2" | version_rnx=="2.11" | version_rnx==2 | version_rnx==2.11){
 
 			#read data
 			if(!is.na(path_rinex)) rinex_in = readLines(	path_rinex)
