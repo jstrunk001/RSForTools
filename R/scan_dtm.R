@@ -19,8 +19,7 @@
 #'
 #'@param project name of lidar project
 #'@param project_year year of lidar project
-#'@param proj4_name human interpretable name of projection if known
-#'@param proj4 override proj4 string associated with DTMS
+#'@param wkt2 set wkt2 projection
 #'@param dir_dtm where to find dtm files
 #'@param recursive T/F recurse into dir_dtm subdirectories ?
 #'@param pattern pattern to use in searching for dtm files
@@ -51,8 +50,7 @@
 scan_dtm=function(
   project="wa_dtm"
   ,project_year="2099"
-  ,proj4_name=c(NA,"NAD_1983_HARN_StatePlane_Washington_South_FIPS_4601_Feet")
-  ,proj4=NA
+  ,wkt2=NA
   ,dir_dtm=""
   ,dir_out = paste0(dir_dtm,"/manage_las/")
   ,recursive = F
@@ -64,9 +62,9 @@ scan_dtm=function(
   ,debug=F
 
 ){
-  
 
-  #can only 
+
+  #can only
   if(length(dir_out)>1) stop("length of \"dir_out\" greater than 1 - please specify a single output directory")
 
   require("uuid")
@@ -119,7 +117,7 @@ scan_dtm=function(
       ,load_date=proc_date
       ,file_path=dir_dtm #paste(dir_dtm,collapse=",")
       ,notes=notes
-      ,proj4_name = proj4_name[1]
+      ,wkt2=wkt2
     )
 
     #write to file
@@ -184,10 +182,10 @@ scan_dtm=function(
     headers[,"file_path"]=files_dtm
     headers[,"load_date"]=as.character(proc_date)
     headers[,"notes"]=notes
-    
-    #override proj4 from rasters - especially .dtm and rasters without projections
-    if(!is.na(proj4)) headers[,"proj4"] = proj4
-    
+
+    #override wkt2 from rasters - especially .dtm and rasters without projections
+    if(!is.na(wkt2)) headers[,"wkt2"] = wkt2
+
     #merge old and updated dtms
     if(nrow(dtm_id_df) > 0){
       dtm_id_df=plyr::rbind.fill(headers,dtm_id_df[,names(headers)[names(headers)%in% names(dtm_id_df)]])
@@ -200,26 +198,21 @@ scan_dtm=function(
     dbWriteTable( con_gpkg , "dtm_id" , dtm_id_df, overwrite = T )
 
   }
-  
+
   dbDisconnect(con_gpkg)
 
-  if(create_polys){ 
+  if(create_polys){
 
-    proj4match = length(unique(dtm_id_df$proj4))==1
-    if(!proj4match) warning("scan_dtm, create_polys=T: there are DTMS with different projections in inputs")
-    
-    #create sp polygons (vestigial - need update to sf)
-    dtm_polys = bbox2polys(dtm_id_df[,c("dtm_id","min_x","max_x","min_y","max_y")])
-    row.names(dtm_id_df) = dtm_id_df[,"dtm_id"]
-    sp_dtms = sp::SpatialPolygonsDataFrame(dtm_polys,dtm_id_df)
-    proj4string(sp_dtms) = dtm_id_df$proj4[1]
-    
-    #create sf outputs
-    sf_dtms = sf::st_as_sf(sp_dtms)
-    
-    #assign crs to sf
-    st_crs(sf_dtms) = dtm_id_df$proj4[1]
-    
+    wkt2match = length(unique(dtm_id_df$wkt2))==1
+    if(!wkt2match) warning("scan_dtm, create_polys=T: there are DTMS with different projections in inputs")
+
+    #create sf extent polygons
+    spl_dtm = base::split(dtm_id_df[,c("min_x","max_x","min_y","max_y")],f=dtm_id_df[,c("dtm_id")])
+    exts_list = lapply(spl_dtm, function(x) sf::st_as_sf(terra::vect(terra::ext(unlist(x)))))
+    exts_df = data.frame(dtm_id_df[,c("dtm_id","min_x","max_x","min_y","max_y")],plyr::rbind.fill(exts_list))
+    ply_exts = sf::st_as_sf(exts_df)
+    sf::st_crs(ply_exts) = wkt2[1]
+
     #save outputs
     #current force overwrite
     if(dtm_update & F){
@@ -228,8 +221,8 @@ scan_dtm=function(
       # try(saveRDS(sf_dtms,polys_rds))
     }else{
       polys_rds=paste(dir_out,"dtm_polys.rds",sep="")
-      try(sf::st_write(obj = sf_dtms , dsn = dtm_gpkg , layer = "dtm_polys", driver="GPKG" , append=FALSE ))
-      try(saveRDS(sf_dtms,polys_rds))
+      try(sf::st_write(obj = ply_exts , dsn = dtm_gpkg , layer = "dtm_polys", driver="GPKG" , append=FALSE ))
+      try(saveRDS(ply_exts,polys_rds))
     }
   }
 
@@ -250,6 +243,6 @@ scan_dtm=function(
   df_ext$n_rows = r_in@nrows
   df_ext$col_spacing = xres(r_in)
   df_ext$row_spacing = yres(r_in)
-  df_ext$proj4 = sp::proj4string(r_in)
+  df_ext$wkt2 = sf::st_crs(r_in)
   df_ext
 }
