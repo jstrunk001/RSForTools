@@ -19,8 +19,7 @@
 #'
 #'@param project name of lidar project
 #'@param project_year year of lidar project
-#'@param proj4_name human interpretable name of projection
-#'@param proj4 proj4 string for projection
+#'@param wkt2 wkt2 string
 #'@param dir_las where to find lidar files
 #'@param pattern pattern to use in searching for las files
 #'@param notes and descriptionn that may be helpful in using a project
@@ -52,8 +51,7 @@
 scan_las=function(
     project = "some_project"
     ,project_year = "2099"
-    ,proj4_name = NA #"NAD_1983_HARN_StatePlane_Washington_South_FIPS_4601_Feet"
-    ,proj4 = NA #"1395 +proj=lcc +lat_1=47.33333333333334 +lat_2=45.83333333333334 +lat_0=45.33333333333334 +lon_0=-120.5 +x_0=500000.0001016001 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=us-ft +no_defs"
+    ,wkt2 = NA
     ,dir_las = ""
     ,dir_out = paste0(dir_las,"/manage_las/")
     ,recursive = F
@@ -70,57 +68,56 @@ scan_las=function(
 
 
   if(length(dir_out)>1) stop("length of \"dir_out\" greater than 1 - please specify a single output directory")
-  
+
   proc_date=Sys.time()
 
   files_las = unlist(lapply(pattern,function(x) list.files(dir_las,full.names=T,recursive=recursive,include.dirs = FALSE,pattern=x,ignore.case = T)))
   if(length(files_las)==0) stop("'scan_las' argument dir_las is not a directory or is empty")
 
   #prepare / read project_id file
-  project_id_csv=paste0(dir_out ,"project_id.csv")
-  las_id_csv=paste(dir_out,"las_id.csv",sep="")
-  las_gpkg=file.path(dir_out,"manage_las.gpkg",sep="")
+  project_id_csv = paste0(dir_out ,"project_id.csv")
+  las_id_csv = paste(dir_out,"las_id.csv",sep="")
+  las_gpkg = file.path(dir_out,"manage_las.gpkg",sep="")
 
   #create out directory if missing
   if(!dir.exists(dir_out)) dir.create(dir_out,recursive=T)
 
-  #get projection if missing - currently no good way to get proj4 simple name
-  if(is.na(proj4)) proj4 = projection( lidR::readLASheader(files_las[1]))
+  #get projection if missing - currently no good way to get wkt2 simple name
+  if(is.na(wkt2)) wkt2 = sf::st_crs( lidR::readLASheader(files_las[1]))
 
   #create or connect to geopackage
-  con_gpkg = dbConnect(RSQLite::SQLite(), las_gpkg)
-  tables_gpkg = dbListTables(con_gpkg)
+  con_gpkg = RSQLite::dbConnect(RSQLite::SQLite(), las_gpkg)
+  tables_gpkg = RSQLite::dbListTables(con_gpkg)
 
   #test for files
-  exist_dir_out=dir.exists(dir_out)
-  exist_project_id_csv=file.exists(project_id_csv)
-  exist_las_id_csv=file.exists(las_id_csv)
+  exist_dir_out = dir.exists(dir_out)
+  exist_project_id_csv = file.exists(project_id_csv)
+  exist_las_id_csv = file.exists(las_id_csv)
 
   exist_project_id_gpkg = "project_id" %in% tables_gpkg
   exist_las_id_gpkg = "las_id" %in% tables_gpkg
-  exist_las_ply_gpkg = "las_polys" %in% tables_gpkg
+  exist_las_ply_gpkg = "ply_exts" %in% tables_gpkg
 
   #if(exist_project_id_csv){
   if(exist_project_id_gpkg){
 
     #project_id_df=read.csv(project_id_csv,stringsAsFactors = F)
-    project_id_df = dbReadTable( con_gpkg , "project_id" , stringsAsFactors = F )
+    project_id_df = RSQLite::dbReadTable( con_gpkg , "project_id" , stringsAsFactors = F )
 
   }else{
 
     project_id_df = data.frame(
-      project_id = UUIDgenerate(use.time = NA)
+      project_id = uuid::UUIDgenerate(use.time = NA)
       ,project = project
       ,project_year = project_year
       ,load_date = proc_date
       ,file_path = dir_las
       ,notes = notes
-      ,proj4_name = proj4_name
-      ,proj4 = proj4
+      ,wkt2 = wkt2
     )
     write.csv(project_id_df, project_id_csv,row.names=F)
 
-    dbWriteTable(con_gpkg, "project_id" ,project_id_df )
+    RSQLite::dbWriteTable(con_gpkg, "project_id" ,project_id_df )
 
   }
 
@@ -128,7 +125,7 @@ scan_las=function(
   if(exist_las_id_gpkg){
 
     #las_id_df = read.csv(las_id_csv,stringsAsFactors = F)
-    las_id_df = dbReadTable(con_gpkg , "las_id" , stringsAsFactors = F)
+    las_id_df = RSQLite::dbReadTable(con_gpkg , "las_id" , stringsAsFactors = F)
 
   }else{
 
@@ -152,17 +149,18 @@ scan_las=function(
   if(las_update){
 
     #identify missing records
-    files_las=files_las[!names_las_exist]
+    files_las = files_las[!names_las_exist]
 
     #get lidar headers
-    headers=RSForInvt::read_header(files_las)
+    headers = read_header(files_las)
 
     #prep data for database
     names(headers)=gsub("max","max_",gsub("min","min_",tolower(names(headers))))
+    headers[,c("min_x","max_x","min_y","max_y")] = sapply(headers[,c("min_x","max_x","min_y","max_y")], as.numeric)
     headers[,"project_id"]=proj_id
     headers[,"project"]=project
     headers[,"project_year"]=project_year
-    headers[,"las_id"]=sapply(1:nrow(headers),function(x)UUIDgenerate())
+    headers[,"las_id"]=sapply(1:nrow(headers),function(x)uuid::UUIDgenerate())
     headers[,"file_name"]=basename(files_las)
     headers[,"file_path"]=files_las
     headers[,"load_date"]=proc_date
@@ -172,37 +170,39 @@ scan_las=function(
     else las_id_df = headers
 
     write.csv(las_id_df,las_id_csv,row.names=F)
-    dbWriteTable( con_gpkg , "las_id" , las_id_df )
+    RSQLite::dbWriteTable( con_gpkg , "las_id" , las_id_df )
 
   }
 
-  #if(exist_las_ply_gpkg) try(dbSendQuery(con_gpkg, "drop table las_polys"))
-  dbDisconnect(con_gpkg)
+  #if(exist_las_ply_gpkg) try(dbSendQuery(con_gpkg, "drop table ply_exts"))
+  RSQLite::dbDisconnect(con_gpkg)
 
   if(create_polys){
 
-    path_polys_rds=paste(dir_out,"las_polys.rds",sep="")
-    #path_polys_shp=paste(dir_out,"las_polys.shp",sep="")
+    path_polys_rds=paste(dir_out,"ply_exts.rds",sep="")
+    #path_polys_shp=paste(dir_out,"ply_exts.shp",sep="")
     #path_polys_gpkg=paste(dir_out,"manage_las.gpkg",sep="")
 
     bad_files=apply(las_id_df[,c("min_x","max_x","min_y","max_y")],1,function(x)any(is.na(x)) )
     las_id_df1=las_id_df[!bad_files,]
 
-    las_polys=bbox2polys(las_id_df1[,c("las_id","min_x","max_x","min_y","max_y")])
-    row.names(las_id_df1)=las_id_df1[,"las_id"]
-    las_polys=sp::SpatialPolygonsDataFrame(las_polys,las_id_df1)
+    #create sf extent polygons
+    spl_las = base::split(las_id_df1[,c("min_x","max_x","min_y","max_y")],f=las_id_df1[,c("las_id")])
+    exts_list = lapply(spl_las, function(x) sf::st_as_sf(terra::vect(terra::ext(unlist(x)))))
+    exts_df = data.frame(las_id_df1[,c("las_id","min_x","max_x","min_y","max_y")],plyr::rbind.fill(exts_list))
+    ply_exts = sf::st_as_sf(exts_df)
+    sf::st_crs(ply_exts) = wkt2[1]
+
 
     #save outputs
-    try(saveRDS(las_polys,path_polys_rds))
-
-    names(las_polys) = gsub("[.]","_",names(las_polys))
-    names(las_polys) = gsub(" ","_",names(las_polys))
-    sf_obj = sf::st_as_sf(las_polys)
-    try(sf::st_write(obj = sf_obj , dsn = las_gpkg , layer = "las_polys", driver="GPKG" , append=FALSE))
+    try(saveRDS(ply_exts,path_polys_rds))
+    names(ply_exts) = gsub("[.]","_",names(ply_exts))
+    names(ply_exts) = gsub(" ","_",names(ply_exts))
+    try(sf::st_write(obj = ply_exts , dsn = las_gpkg , layer = "las_polys", driver="GPKG" , append=FALSE))
 
   }
 
-  if(return) return(list(project_id = project_id_df, las_ids = las_id_df  , plys = las_polys))
+  if(return) return(list(project_id = project_id_df, las_ids = las_id_df  , plys = ply_exts))
 
 }
 

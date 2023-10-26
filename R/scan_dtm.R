@@ -19,7 +19,7 @@
 #'
 #'@param project name of lidar project
 #'@param project_year year of lidar project
-#'@param wkt2 set wkt2 projection
+#'@param wkt2 set wkt2 projection - new standard
 #'@param dir_dtm where to find dtm files
 #'@param recursive T/F recurse into dir_dtm subdirectories ?
 #'@param pattern pattern to use in searching for dtm files
