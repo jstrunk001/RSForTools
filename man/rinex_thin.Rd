@@ -18,6 +18,29 @@ rinex_thin(
   return_rinex = F
 )
 }
+\arguments{
+\item{dir_rinex}{?}
+
+\item{dir_out}{?}
+
+\item{path_rinex}{?}
+
+\item{path_out}{?}
+
+\item{start_hz}{?}
+
+\item{target_hz}{?}
+
+\item{start_epoch}{?}
+
+\item{finish_epoch}{?}
+
+\item{ignore.short.file}{?}
+
+\item{version_rnx}{?}
+
+\item{return_rinex}{?}
+}
 \value{
 <Delete and Replace>
 }
@@ -41,9 +64,10 @@ Revision History
 \examples{
  <Delete and Replace>
 
+
 }
 \seealso{
-\code{\link{another_function}}\cr \code{\link{yet_another_function}}\cr
+\code{\link{rinex_header_edit}}\cr \code{\link{rinex_clip}}\cr
 }
 \author{
 Jacob Strunk <strunky@gmail.com>
