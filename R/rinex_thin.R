@@ -24,24 +24,18 @@
 #'
 #'Jacob Strunk <strunky@@gmail.com>
 #'
-#'@param
-#'@param
-#'@param
-#'@param
-#'@param
-#'@param
-#'@param
-#'@param
-#'@param
-#'@param
-#'@param
-#'@param
-#'@param
-#'@param
-#'@param
-#'@param
-#'@param
-#'@param
+#'@param dir_rinex ?
+#'@param  dir_out ?
+#'@param  path_rinex  ?
+#'@param  path_out  ?
+#'@param  start_hz  ?
+#'@param  target_hz  ?
+#'@param  start_epoch ?
+#'@param  finish_epoch  ?
+#'@param  ignore.short.file  ?
+#'@param  version_rnx ?
+#'@param  return_rinex  ?
+#'
 #'
 #'@return
 #'  <Delete and Replace>
@@ -49,11 +43,10 @@
 #'@examples
 #'  <Delete and Replace>
 #'
-#'@import some_package some_package2
 #'
 #'@export
 #
-#'@seealso \code{\link{another_function}}\cr \code{\link{yet_another_function}}\cr
+#'@seealso \code{\link{rinex_header_edit}}\cr \code{\link{rinex_clip}}\cr
 
 #Desired upgrades to this function:
 #
