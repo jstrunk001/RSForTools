@@ -189,7 +189,7 @@ scan_las=function(
     #create sf extent polygons
     spl_las = base::split(las_id_df1[,c("min_x","max_x","min_y","max_y")],f=las_id_df1[,c("las_id")])
     exts_list = lapply(spl_las, function(x) sf::st_as_sf(terra::vect(terra::ext(unlist(x)))))
-    exts_df = data.frame(las_id_df1[,c("las_id","min_x","max_x","min_y","max_y")],plyr::rbind.fill(exts_list))
+    exts_df = data.frame(las_id_df1,plyr::rbind.fill(exts_list))
     ply_exts = sf::st_as_sf(exts_df)
     sf::st_crs(ply_exts) = wkt2[1]
 

@@ -56,19 +56,24 @@ read_header=function(paths=NA
 
 }
 
-
-# read_header.character=function(paths){
-#
-#   if(length(paths)==0) stop("'path' is empty")
-#   if(length(paths)==1) try(return(data.frame(t(.read_one_header(paths)))))
-#   if(length(paths) >1) try(return(.read_headers(paths)))
-#
-# }
+#read an .las/laz file header and skip bad files
+.fn_error_las = function(x){
+  # nmsKeep = c('File Signature','File Source ID','Project ID - GUID','Version Major','Version Minor'
+  #             ,'System Identifier','Generating Software','File Creation Day of Year','File Creation Year'
+  #             ,'Header Size','Offset to point data','Number of variable length records','Point Data Format ID'
+  #             ,'Point Data Record Length','Number of point records','X scale factor'
+  #             ,'Y scale factor','Z scale factor','X offset','Y offset','Z offset','Max X','Min X','Max Y','Min Y','Max Z','Min Z'
+  #             )
+  #x_in = try(rlas::read.lasheader(x))
+  x_in = try(.read_one_header(x))
+  if(class(x_in)=="try-error") data.frame('max_x'=NA,'min_x'=NA,'max_y'=NA,'min_y'=NA,'Max.Z'=NA,'Min.Z'=NA )
+  else data.frame(t( x_in ))
+}
 
 .read_headers=function(paths){
-
-  headers=data.frame(do.call(rbind,lapply(paths,function(x)t(.read_one_header(x)))),row.names=NULL)
-
+  headers0 = lapply(paths,.fn_error_las)
+  #subset valid cases
+  plyr::rbind.fill(headers0)
 }
 
 .read_one_header=function(path){

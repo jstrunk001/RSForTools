@@ -209,7 +209,7 @@ scan_dtm=function(
     #create sf extent polygons
     spl_dtm = base::split(dtm_id_df[,c("min_x","max_x","min_y","max_y")],f=dtm_id_df[,c("dtm_id")])
     exts_list = lapply(spl_dtm, function(x) sf::st_as_sf(terra::vect(terra::ext(unlist(x)))))
-    exts_df = data.frame(dtm_id_df[,c("dtm_id","min_x","max_x","min_y","max_y")],plyr::rbind.fill(exts_list))
+    exts_df = data.frame(dtm_id_df,plyr::rbind.fill(exts_list))
     ply_exts = sf::st_as_sf(exts_df)
     sf::st_crs(ply_exts) = wkt2[1]
 
