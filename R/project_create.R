@@ -74,8 +74,7 @@
 #'
 
 project_create=function(
-
-  dir_las=NA
+   dir_las=NA
   ,dir_dtm=NA
   ,recurse_dtm = F
   ,recurse_las = F
@@ -139,8 +138,10 @@ project_create=function(
   path_las_proj=paste(dir_out,"/manage_las.gpkg",sep="")
 
   #read in las and dtm polygons
-  dtm_polys=rgdal::readOGR(dsn = path_dtm_proj,"dtm_polys")
-  las_polys=rgdal::readOGR(dsn = path_las_proj,"las_polys")
+  dtm_polys = rgdal::readOGR(dsn = path_dtm_proj,"dtm_polys")
+  las_polys = rgdal::readOGR(dsn = path_las_proj,"las_polys")
+  #las_polys = sf::st_read(dsn = path_las_proj,"las_polys")
+  #dtm_polys = sf::st_read(dsn = path_dtm_proj,"dtm_polys")
 
   #remove duplicates if present
   if(duplicate_las[1] == "remove"){
@@ -149,7 +150,7 @@ project_create=function(
   if(duplicate_dtm[1] == "remove"){
     dtm_polys = subset( dtm_polys , subset= !duplicated(dtm_polys$file_name) )
   }
-
+browser()
   #get proj4 if not provided and add to dtms if needed
   if(!is.na(proj4)) proj4_in = proj4
   else proj4_in = sp::proj4string(las_polys)
@@ -278,7 +279,7 @@ project_create=function(
     sf_proj = sf::st_as_sf(tile_polys1)
     #get output name
     path_gpkg_out = paste0(dir_out,"/",layer_project,"_RSprj.gpkg")
-    
+
     #write project polygons to FRESH geopackage - overwrite!
     try(sf::st_write(obj = sf_proj , dsn = path_gpkg_out , layer = layer_project, driver="GPKG",  layer_options = c("OVERWRITE=yes") ))
 
@@ -295,7 +296,7 @@ project_create=function(
     sp::proj4string(las_polys2) = proj4_in
     sf_las_bfr = sf::st_as_sf(las_polys2)
     try(sf::st_write(obj = sf_las_bfr , dsn = path_gpkg_out , layer = "las_tiles_bfr", driver="GPKG",  layer_options = c("OVERWRITE=yes") ))
-  
+
     #write config table to geopackage
     sqlite_proj = RSQLite::dbConnect(RSQLite::SQLite(), path_gpkg_out)
     smry_write_err = try(RSQLite::dbWriteTable(sqlite_proj ,layer_config , df_config, overwrite = T))
