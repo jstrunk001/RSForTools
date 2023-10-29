@@ -24,33 +24,45 @@
 #'
 #'Jacob Strunk <Jstrunk@@fs.fed.us>
 #'
-#'@param idxxyy dataframe with 5 columns - id, minx,maxx, miny, maxy - representing the id, and bounding x,y of polygons
+#'@param df_ext a data.frame with 4 columns of coordinates: minx, maxx, miny, and maxy indicating bounding boxes or extents
+#'@param cols_ext a named vector with names 'xmin','xmax','ymin','ymax' indicating where bound box coordinates are stored
+#'@param wkt2 standard crs format for sf and terra packages
 #'
 #'@return
-#'  SpatialPolygons object
+#'  sf spatial data frame with all original fields and added geometry field
 #'
 #'@examples
 #'  #none yet
 #'
-#'@importFrom plyr rbind.fill
-#'@import sp
+#'@import sf
 #'
 #'@export
 #
 #'@seealso \code{\link{scan_las}}\cr \code{\link{read_las}}\cr
 
 #'@export
-bbox2polys=function(idxxyy){
+bbox2polys = function(df_ext, cols_ext=c(xmin="min_x",xmax="max_x",ymin="min_y",ymax="max_y") , wkt2=NA){
 
-  idxy_in=plyr::rbind.fill(
-    apply(idxxyy,1,function(x) data.frame(id=x[1]
-                                          ,x=as.numeric(x[c(2,2,3,3,2)])
-                                          ,y=as.numeric(x[c(4,5,5,4,4)])
-                                          ,row.names=NULL,stringsAsFactors=F)
-          )
+  #tests
+  if( sum(cols_ext %in% names(df_ext)) < 4) stop("must specify columns with coordinates for bound box; at least one column in cols_ext is not present in df_ext")
+  if( sum(names(cols_ext) %in% c('xmin','xmax','ymin','ymax') ) < 4) stop("'cols_ext' must be a named vector with names 'xmin','xmax','ymin','ymax' which indicate extent columns in df_ext")
+
+  #update column names to match sf requirements for st_bbox
+  df_ext_in = df_ext[,cols_ext]
+  names(df_ext_in) = names(cols_ext)
+
+  #use sf to make bbox polygons
+  df_in = sf::st_as_sf(
+    data.frame(
+    df_ext
+    ,geometry=do.call(rbind,
+        apply(df_ext_in,1,function(x) sf::st_as_sfc(sf::st_bbox(x)))
+      )
+    )
   )
+  if(!is.na(wkt2)) sf::st_crs(df_in) = sf::st_crs(wkt2)
 
-  points2polys(idxy_in)
+  df_in
 
 }
 

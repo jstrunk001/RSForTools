@@ -179,22 +179,24 @@ scan_las=function(
 
   if(create_polys){
 
-    path_polys_rds=paste(dir_out,"ply_exts.rds",sep="")
-    #path_polys_shp=paste(dir_out,"ply_exts.shp",sep="")
-    #path_polys_gpkg=paste(dir_out,"manage_las.gpkg",sep="")
-
+    #scrape off bad records
     bad_files=apply(las_id_df[,c("min_x","max_x","min_y","max_y")],1,function(x)any(is.na(x)) )
     las_id_df1=las_id_df[!bad_files,]
 
     #create sf extent polygons
-    spl_las = base::split(las_id_df1[,c("min_x","max_x","min_y","max_y")],f=las_id_df1[,c("las_id")])
-    exts_list = lapply(spl_las, function(x) sf::st_as_sf(terra::vect(terra::ext(unlist(x)))))
-    exts_df = data.frame(las_id_df1,plyr::rbind.fill(exts_list))
-    ply_exts = sf::st_as_sf(exts_df)
-    sf::st_crs(ply_exts) = wkt2[1]
+    ply_exts = bbox2polys(las_id_df1, wkt2 = wkt2)
+
+    # #testng
+    # if(F){
+    #
+    #   dplyr::filter(las_id_df1, file_path == "H:/projects/NAIP_DAP_OR/2022_NAIP_DAP_OR/DSM_update//Infocloud_set02/PointCloud_01183.laz")
+    #   laz_test = lidR::readLASheader("H:/projects/NAIP_DAP_OR/2022_NAIP_DAP_OR/DSM_update//Infocloud_set02/PointCloud_01183.laz")
+    #
+    # }
 
 
     #save outputs
+    path_polys_rds=paste(dir_out,"ply_exts.rds",sep="")
     try(saveRDS(ply_exts,path_polys_rds))
     names(ply_exts) = gsub("[.]","_",names(ply_exts))
     names(ply_exts) = gsub(" ","_",names(ply_exts))
