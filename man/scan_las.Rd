@@ -7,8 +7,7 @@
 scan_las(
   project = "some_project",
   project_year = "2099",
-  proj4_name = NA,
-  proj4 = NA,
+  wkt2 = NA,
   dir_las = "",
   dir_out = paste0(dir_las, "/manage_las/"),
   recursive = F,
@@ -23,9 +22,7 @@ scan_las(
 
 \item{project_year}{year of lidar project}
 
-\item{proj4_name}{human interpretable name of projection}
-
-\item{proj4}{proj4 string for projection}
+\item{wkt2}{wkt2 string}
 
 \item{dir_las}{where to find lidar files}
 

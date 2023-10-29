@@ -7,8 +7,7 @@
 scan_dtm(
   project = "wa_dtm",
   project_year = "2099",
-  proj4_name = c(NA, "NAD_1983_HARN_StatePlane_Washington_South_FIPS_4601_Feet"),
-  proj4 = NA,
+  wkt2 = NA,
   dir_dtm = "",
   dir_out = paste0(dir_dtm, "/manage_las/"),
   recursive = F,
@@ -25,9 +24,7 @@ scan_dtm(
 
 \item{project_year}{year of lidar project}
 
-\item{proj4_name}{human interpretable name of projection if known}
-
-\item{proj4}{override proj4 string associated with DTMS}
+\item{wkt2}{set wkt2 projection - new standard}
 
 \item{dir_dtm}{where to find dtm files}
 

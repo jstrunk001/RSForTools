@@ -27,7 +27,7 @@ project_create(
   xmx = c(NA, 2805066),
   ymn = c(NA, 33066),
   ymx = c(NA, 1551066),
-  proj4 = c(NA,
+  wkt2 = c(NA,
     "+proj=lcc +lat_1=47.33333333333334 +lat_2=45.83333333333334 +lat_0=45.33333333333334 +lon_0=-120.5 +x_0=500000.0001016001 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=us-ft +no_defs"),
   mask = NA,
   return = T

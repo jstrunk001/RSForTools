@@ -150,11 +150,11 @@ project_create=function(
   }
 
   #get wkt2 if not provided and add to dtms if needed
-  if(!is.na(wkt2)) wkt2_in = wkt2
-  else{
+  if(!is.na(wkt2)){
+    wkt2_in = wkt2
+  }else{
     wkt2_in = sf::st_crs(las_polys)
   }
-
   dtm_wkt2 = sf::st_crs(dtm_polys)
   if(is.na(dtm_wkt2)) sf::st_crs(dtm_polys) = wkt2_in
 
@@ -164,156 +164,144 @@ project_create=function(
   print("completed: buffer las and dtm polygons");print(Sys.time())
 
   #create processing tiles
-  if( ( is.na(xmn[1]) | is.na(xmx[1]) | is.na(ymn[1]) | is.na(ymx[1]) ) ){
-    ext = raster::extent(las_polys1)
-    xmn = ext@xmin
-    xmx = ext@xmax
-    ymn = ext@ymin
-    ymx = ext@ymax
-  }
-  proc_rast = terra::rast(xmin=xmn,xmax=xmx,ymin=ymn,ymax=ymx,resolution=tile_size,crs=wkt2_in);gc()
-  proc_rast[] = 1:terra::ncell(proc_rast)
-  xy = terra::as.data.frame(proc_rast,xy=T)
-  proc_poly = sf::st_as_sf(terra::as.polygons(proc_rast,  na.rm=TRUE, digits=12, aggregate=FALSE))
-  proc_bbx = do.call(rbind,lapply(split(proc_poly,proc_poly$lyr.1),sf::st_bbox))
-  proc_poly1 = data.frame(lyr.1 = proc_poly[,1,drop=T],proc_bbx,proc_poly[,-1,drop=F] )
-
-
-  print("completed: create tile scheme ");print(Sys.time())
+    #create tiles as raster
+    proc_rast = terra::rast(xmin=xmn,xmax=xmx,ymin=ymn,ymax=ymx,resolution=tile_size,crs=wkt2_in);gc()
+    #load tiles with unique ids
+    proc_rast[] = 1:terra::ncell(proc_rast)
+    #name tile_id column
+    names(proc_rast)="tile_id"
+    #get coordinates for cells
+    xy = terra::as.data.frame(proc_rast,xy=T)
+    #convert raster to polygon
+    proc_poly = sf::st_as_sf(terra::as.polygons(proc_rast,  na.rm=TRUE, digits=12, aggregate=FALSE))
+    #get coordinates for bounding boxes in proc_poly tiles
+    proc_bbx = do.call(rbind,lapply(split(proc_poly,proc_poly$tile_id),sf::st_bbox))
+    #combine processing tiles with bbox coordinates
+    proc_poly1 = sf::st_as_sf(data.frame(tile_id = proc_poly[,"tile_id",drop=T],proc_bbx,proc_poly[,"geometry"] ))
+    print("completed: create tile scheme ");print(Sys.time())
 
   #mask if desired
-  if(!is.na(mask[1])){
-    mask1=rgeos::gBuffer(mask,width=tile_size,capStyle="square")
-    proc_poly = terra::crop(proc_poly,mask1)
-  }
-  print("completed: mask to sub extent");print(Sys.time())
+    if(!is.na(mask[1])){
+      mask1=rgeos::gBuffer(mask,width=tile_size,capStyle="square")
+      proc_poly1 = terra::crop(proc_poly1,mask1)
+    }
+    print("completed: mask to sub extent");print(Sys.time())
 
   #extract dtm tiles with polygons
-  ex_dtm <- sf::st_intersects(dtm_polys1, proc_poly,sparse=T)
-  names(ex_dtm) = dtm_polys1$file_path
-  ex_dtm1 = ex_dtm[lapply(ex_dtm,length)>0]
-  print("completed: extract dtm polygons");print(Sys.time())
+    ex_dtm <- sf::st_intersects(dtm_polys1, proc_poly1,sparse=T)
+    names(ex_dtm) = dtm_polys1$file_path
+    ex_dtm1 = ex_dtm[lapply(ex_dtm,length)>0]
+    print("completed: extract dtm polygons");print(Sys.time())
+    # plot(sf::st_geometry(proc_poly1[ex_dtm1[[1]],]))
+    # plot(sf::st_geometry(dtm_polys1[1,]),add=T)
+
 
   #extract las tiles with polygons
-  ex_las = sf::st_intersects(las_polys1, proc_poly,sparse=T)
-  names(ex_las) = las_polys1$file_path
-  ex_las1 = ex_las[lapply(ex_las,length)>0]
-  print("completed: extract las polygons");print(Sys.time())
-
-  #plot(sf::st_geometry(proc_poly))
-  #plot(sf::st_geometry(las_polys),add=T)
+    ex_las = sf::st_intersects(las_polys1, proc_poly1,sparse=T)
+    names(ex_las) = las_polys1$file_path
+    ex_las1 = ex_las[lapply(ex_las,length)>0]
+    print("completed: extract las polygons");print(Sys.time())
+    # plot(sf::st_geometry(proc_poly1[ex_las1[[155]],]))
+    # plot(sf::st_geometry(las_polys1[155,]),add=T)
 
   #create dataframe from dtm and las intersections on tiles
-  print(paste("create data.frame from dtm and las intersections on tiles steps 1 and 2 (start):",as.character(Sys.time())))
-  tiles_las_df=data.frame(data.table::rbindlist(mapply(function(layer,file){data.frame(layer,las_file=file,stringsAsFactors=F)},ex_las1,names(ex_las1),SIMPLIFY=F)))
-  tiles_dtm_df = data.frame(data.table::rbindlist(mapply(function(layer,file){data.frame(layer,dtm_file=file,stringsAsFactors=F)},ex_dtm1,names(ex_dtm1),SIMPLIFY=F)))
-  print(paste("Create data.frame from dtm and las intersections on tiles steps 1 and 2 (end):",as.character(Sys.time())))
+    print(paste("create data.frame from dtm and las intersections on tiles steps 1 and 2 (start):",as.character(Sys.time())))
+    tiles_las_df=data.frame(data.table::rbindlist(mapply(function(tile_id,file){data.frame(tile_id=tile_id,las_file=file,stringsAsFactors=F)},ex_las1,names(ex_las1),SIMPLIFY=F)))
+    tiles_dtm_df = data.frame(data.table::rbindlist(mapply(function(tile_id,file){data.frame(tile_id=tile_id,dtm_file=file,stringsAsFactors=F)},ex_dtm1,names(ex_dtm1),SIMPLIFY=F)))
+    print(paste("Create data.frame from dtm and las intersections on tiles steps 1 and 2 (end):",as.character(Sys.time())))
 
-  print(paste("create data.frame from dtm and las intersections on tiles steps 3 and 4 (start):",as.character(Sys.time())))
-  tiles_dtm_agg=aggregate(dtm_file ~ layer,data=tiles_dtm_df,FUN=function(x)paste(unique(x),collapse=","))
-  tiles_las_agg=aggregate(las_file ~ layer,data=tiles_las_df,FUN=function(x)paste(unique(x),collapse=","))
-  print(paste("create data.frame from dtm and las intersections on tiles steps 3 and 4 (end):",as.character(Sys.time())))
+    print(paste("create data.frame from dtm and las intersections on tiles steps 3 and 4 (start):",as.character(Sys.time())))
+    tiles_dtm_agg=aggregate(dtm_file ~ tile_id,data=tiles_dtm_df,FUN=function(x)paste(unique(x),collapse=","))
+    tiles_las_agg=aggregate(las_file ~ tile_id,data=tiles_las_df,FUN=function(x)paste(unique(x),collapse=","))
+    print(paste("create data.frame from dtm and las intersections on tiles steps 3 and 4 (end):",as.character(Sys.time())))
 
-  print(paste("merge dtm and las tile (start) :",as.character(Sys.time())))
-  tiles_las_dtm = merge(tiles_las_agg,tiles_dtm_agg,by="layer")
-  print(paste("merge dtm and las tile (end) :",as.character(Sys.time())))
+    print(paste("merge dtm and las tile (start) :",as.character(Sys.time())))
+    tiles_las_dtm = merge(tiles_las_agg,tiles_dtm_agg,by="tile_id")
+    print(paste("merge dtm and las tile (end) :",as.character(Sys.time())))
 
   #add processing tile bounds
-  tiles_coords = merge(x=tiles_las_dtm,y=proc_poly1,by.x="layer",by.y="lyr.1")
-  names(tiles_coords)[names(tiles_coords)=="layer"] = "tile_id"
-  # crd = tiles_coords[,c("x","y")]
-  # ts2 = tile_size/2
-  # bbx = data.frame(
-  #   mnx = crd[,"x"] - ts2
-  #   ,mxx = crd[,"x"] + ts2
-  #   ,mny = crd[,"y"] - ts2
-  #   ,mxy = crd[,"y"] + ts2
-  # )
-  # tiles_bbx = data.frame(tiles_coords,bbx)
+    tiles_coords = sf::st_as_sf(merge(x=tiles_las_dtm,y=proc_poly1,by.x="tile_id",by.y="tile_id"))
 
-  #create polys from bboxs and write to file
-  # spl_bbx = split(bbx, 1:nrow(tiles_bbx))
-  # exts_list = lapply(spl_bbx, function(x) sf::st_as_sf(terra::vect(terra::ext(unlist(x)))))
-  # exts_df = data.frame(tiles_bbx,plyr::rbind.fill(exts_list))
-  # tile_polys = sf::st_as_sf(exts_df)
-  # sf::st_crs(tile_polys) = wkt2[1]
+    #test overlay is correct
+    if(F){
+      id_test= 1500
+      dtm_test = dplyr::filter(dtm_polys1, full_path %in% dplyr::filter( tiles_dtm_agg, tile_id==id_test)$dtm_file)
+      las_test = dplyr::filter(las_polys1, file_path %in% unlist(strsplit(dplyr::filter( tiles_las_agg, tile_id==id_test)$las_file,",")) )
+      proc_test = dplyr::filter(tiles_coords, tile_id==id_test)
+      plot(sf::st_geometry(dtm_test))
+      plot(sf::st_geometry(las_test),add=T)
+      plot(sf::st_geometry(proc_test), add=T, border="green",lwd=2)
+    }
 
-  #create config file
-  df_config = data.frame(
-    dir_out = dir_out
-    ,layer_project = layer_project
-    ,layer_config  =  layer_config
-    ,layer_las_buf = "las_tiles_bfr"
-    ,layer_dtm_buf = "dtm_tiles_bfr"
-    #,tile_buffer = ts2
+  #create config file and summary
+    df_config = data.frame(
+      dir_out = dir_out
+      ,layer_project = layer_project
+      ,layer_config  =  layer_config
+      ,layer_las_buf = "las_tiles_bfr"
+      ,layer_dtm_buf = "dtm_tiles_bfr"
+      #,tile_buffer = ts2
 
-    ,dir_las = dir_las
-    ,dir_dtm = dir_dtm
-    ,project_dtm  = project_dtm
-    ,project_las  = project_las
+      ,dir_las = dir_las
+      ,dir_dtm = dir_dtm
+      ,project_dtm  = project_dtm
+      ,project_las  = project_las
 
-    ,dtm_year  = dtm_year
-    ,las_year  = las_year
-    ,n_las = nrow(las_polys)
-    ,n_dtm = nrow(dtm_polys)
-    ,n_tile = nrow(proc_poly1)
-    ,origin_x = terra::origin(proc_rast)[1]
-    ,origin_y = terra::origin(proc_rast)[2]
+      ,dtm_year  = dtm_year
+      ,las_year  = las_year
+      ,n_las = nrow(las_polys)
+      ,n_dtm = nrow(dtm_polys)
+      ,n_tile = nrow(proc_poly1)
+      ,origin_x = terra::origin(proc_rast)[1]
+      ,origin_y = terra::origin(proc_rast)[2]
 
-    ,overwrite_project  =  overwrite_project
-    ,xmn  = xmn
-    ,ymn  = ymn
-    ,xmx  = xmx
-    ,ymx = ymx
-    ,do_scan_dtms = do_scan_dtms
-    ,do_scan_las  = do_scan_las
-    ,tile_size  = tile_size
-    ,pixel_size  = pixel_size
-    ,wkt2  = wkt2
-    ,has_mask  = is.na(mask)
-  )
+      ,overwrite_project  =  overwrite_project
+      ,xmn  = xmn
+      ,ymn  = ymn
+      ,xmx  = xmx
+      ,ymx = ymx
+      ,do_scan_dtms = do_scan_dtms
+      ,do_scan_las  = do_scan_las
+      ,tile_size  = tile_size
+      ,pixel_size  = pixel_size
+      ,wkt2  = wkt2
+      ,has_mask  = is.na(mask)
+    )
 
   #prepare geopackage details
 
     #get output name
-    path_gpkg_out = paste0(dir_out,"/",layer_project,"_RSprj.gpkg")
-
+      path_gpkg_out = paste0(dir_out,"/",layer_project,"_RSprj.gpkg")
     #write project polygons to FRESH geopackage - overwrite!
-    try(sf::st_write(obj = proc_poly1 , dsn = path_gpkg_out , layer = layer_project, driver="GPKG",  append=FALSE ))
+      try(sf::st_write(obj = tiles_coords , dsn = path_gpkg_out , layer = layer_project, driver="GPKG",  append=FALSE ))
 
     #write dtm polygons to geopackage
-    try(sf::st_write(obj = dtm_polys , dsn = path_gpkg_out , layer = "dtm_tiles", driver="GPKG",  append=FALSE ))
-    try(sf::st_write(obj = dtm_polys1 , dsn = path_gpkg_out , layer = "dtm_tiles_bfr", driver="GPKG",  append=FALSE ))
+      try(sf::st_write(obj = dtm_polys , dsn = path_gpkg_out , layer = "dtm_tiles", driver="GPKG",  append=FALSE ))
+      try(sf::st_write(obj = dtm_polys1 , dsn = path_gpkg_out , layer = "dtm_tiles_bfr", driver="GPKG",  append=FALSE ))
 
     #write las polygons - fix names to remove "[.]"  and " "
-    # las_polys2 = las_polys1
-    # names(las_polys2@data) = gsub("[.]","_",names(las_polys2@data ))
-    # names(las_polys2@data) = gsub(" ","_",names(las_polys2@data ))
-    # las_polys2@data$file_path = normalizePath(as.character(las_polys1@data$file_path), winslash = "/")
-    # sf::st_crs(las_polys2) = wkt2_in
-    # sf_las_bfr = sf::st_as_sf(las_polys2)
-    try(sf::st_write(obj = las_polys , dsn = path_gpkg_out , layer = "las_tiles", driver="GPKG",  append=FALSE))
-    try(sf::st_write(obj = las_polys1 , dsn = path_gpkg_out , layer = "las_tiles_bfr", driver="GPKG",  append=FALSE ))
+      try(sf::st_write(obj = las_polys , dsn = path_gpkg_out , layer = "las_tiles", driver="GPKG",  append=FALSE))
+      try(sf::st_write(obj = las_polys1 , dsn = path_gpkg_out , layer = "las_tiles_bfr", driver="GPKG",  append=FALSE ))
 
     #write config table to geopackage
-    sqlite_proj = RSQLite::dbConnect(RSQLite::SQLite(), path_gpkg_out)
-    smry_write_err = try(RSQLite::dbWriteTable(sqlite_proj ,layer_config , df_config, overwrite = T))
-    RSQLite::dbDisconnect(sqlite_proj)
+      sqlite_proj = RSQLite::dbConnect(RSQLite::SQLite(), path_gpkg_out)
+      smry_write_err = try(RSQLite::dbWriteTable(sqlite_proj ,layer_config , df_config, overwrite = T))
+      RSQLite::dbDisconnect(sqlite_proj)
 
   #save RDS object for redundancy
-  l_res = list(
-              config=df_config
-              , project_plys = proc_poly1
-              ,  dtm_tiles = dtm_polys
-              ,  dtm_tiles_bfr = dtm_polys1
-              ,  las_tiles = las_polys
-              ,  las_tiles_bfr = las_polys1
-              )
-  outRDS = file.path(dirname(path_gpkg_out), gsub("[.]gpkg",".RDS",basename(path_gpkg_out),ignore.case=T))
-  saveRDS(l_res,outRDS)
+    l_res = list(
+                config=df_config
+                , project_plys = proc_poly1
+                ,  dtm_tiles = dtm_polys
+                ,  dtm_tiles_bfr = dtm_polys1
+                ,  las_tiles = las_polys
+                ,  las_tiles_bfr = las_polys1
+                )
+    outRDS = file.path(dirname(path_gpkg_out), gsub("[.]gpkg",".RDS",basename(path_gpkg_out),ignore.case=T))
+    saveRDS(l_res,outRDS)
 
   #return data to users
-  if(return) return(l_res)
+    if(return) return(l_res)
 
 }
 
