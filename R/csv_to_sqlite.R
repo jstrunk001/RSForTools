@@ -96,8 +96,8 @@ csv_to_sqlite=function(
 
   csv_files=list.files(csv_folder,full.names=T,pattern="[.]csv")
 
-  if(length(csv_files)<1) stop("no csv files in 'csv_folder' supplied directory")  
-  
+  if(length(csv_files)<1) stop("no csv files in 'csv_folder' supplied directory")
+
   #check for existence of tables
   tb_exist=dbListTables(db_in)
 
@@ -155,7 +155,7 @@ csv_to_sqlite=function(
     parallel::clusterEvalQ(clus,
      {
         library(RSQLite)
-        library(RSForInvt)
+        library(RSForTools)
         dbGlobal <- dbConnect(SQLite(), dbname = db_path , sychronous = "normal")
         res <- dbSendQuery(dbGlobal, "PRAGMA busy_timeout=50000;")
         gc()
