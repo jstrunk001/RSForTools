@@ -9,7 +9,7 @@ run_gridmetrics(
   proj_gpkg_path = NA,
   layer_proj_polys = "RSForInvt_prj",
   layer_proj_config = "RSForInvt_config",
-  dir_out = "c:/temp/test_project/gridmetrics",
+  dir_out = "c:/dir_proc/test_project/gridmetrics",
   n_core = 4,
   gridmetrics_path = "c:\\\\fusion\\\\gridmetrics64.exe",
   heightbreak = 3,
@@ -23,12 +23,11 @@ run_gridmetrics(
   xmx = NA,
   ymn = NA,
   ymx = NA,
-  temp = "c:\\\\temp\\\\run_gridmetrics\\\\",
   new_dtm_path = c(from = NA, to = NA),
   new_las_path = list(from = NA, to = c(NA, NA), prop = c(0.6, 0.4)),
   skip_existing = T,
   existing_coms = c(NA,
-    "C:\\\\Temp\\\\run_gridmetrics\\\\2017Aug17_100740\\\\all_commands.txt"),
+    "C:\\\\dir_proc\\\\run_gridmetrics\\\\2017Aug17_100740\\\\all_commands.txt"),
   do_run = T,
   debug = F,
   ...
@@ -54,8 +53,6 @@ run_gridmetrics(
 \item{fusion_switches}{other fusion switches as a string e.g. "/noground"}
 
 \item{xmn, xmx, ymn, ymx}{set extent for analysis}
-
-\item{temp}{temp folder to hold batch files for use with gridmetrics.exe}
 
 \item{new_dtm_path}{= c(from = NA, to = NA) rename input file paths (e.g. files have moved)}
 
@@ -95,7 +92,7 @@ Revision History
 ,dir_dtm="c:\\\\usgs_dtms\\\\dtms\\\\"
 ,dir_las="D:\\\\naip_2015_laz\\\\"
 ,n_core=10
-,existing_coms="C:\\\\Temp\\\\run_gridmetrics\\\\2018Jan21_152618\\\\all_commands.txt"
+,existing_coms="C:\\\\dir_proc\\\\run_gridmetrics\\\\2018Jan21_152618\\\\all_commands.txt"
 ,n_cache=400
 )
 
@@ -105,7 +102,7 @@ Revision History
 \code{\link{project_make}}\cr \code{\link{lidR::gridmetrics}}\cr
 
 Desired updates
-1. fix issues with mismatched tile size and cell size 
+1. fix issues with mismatched tile size and cell size
 2. allow dynamic update of tile sizes
 }
 \author{

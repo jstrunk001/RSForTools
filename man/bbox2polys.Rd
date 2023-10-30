@@ -4,13 +4,21 @@
 \alias{bbox2polys}
 \title{create polygons from dataframe of bounding coordinates and ids}
 \usage{
-bbox2polys(idxxyy)
+bbox2polys(
+  df_ext,
+  cols_ext = c(xmin = "min_x", xmax = "max_x", ymin = "min_y", ymax = "max_y"),
+  wkt2 = NA
+)
 }
 \arguments{
-\item{idxxyy}{dataframe with 5 columns - id, minx,maxx, miny, maxy - representing the id, and bounding x,y of polygons}
+\item{df_ext}{a data.frame with 4 columns of coordinates: minx, maxx, miny, and maxy indicating bounding boxes or extents}
+
+\item{cols_ext}{a named vector with names 'xmin','xmax','ymin','ymax' indicating where bound box coordinates are stored}
+
+\item{wkt2}{standard crs format for sf and terra packages}
 }
 \value{
-SpatialPolygons object
+sf spatial data frame with all original fields and added geometry field
 }
 \description{
 create polygons from dataframe of bounding coordinates and ids

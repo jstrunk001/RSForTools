@@ -82,7 +82,7 @@ run_gridmetrics=function(
   ,first = T
   ,intensity = F
   ,outlier = c(-5,400)
-  ,fusion_switches = "/nointensity /first /failnoz"
+  ,fusion_switches = "/nointensity /failnoz"
   ,xmn = NA , xmx= NA , ymn=NA , ymx=NA
 
 
@@ -153,8 +153,6 @@ run_gridmetrics=function(
   if(F){
     test_id=1500
     tile_test = dplyr::filter(proj_polys_in, tile_id==test_id)
-
-
   }
 
 
@@ -248,7 +246,7 @@ run_gridmetrics=function(
       if(n_core>1 ){
         print("begin parallel processing");print(Sys.time())
 
-        clus=parallel::makeCluster(n_core)
+        clus=parallel::makeCluster(n_core,setup_strategy = "sequential")
         #clusterEvalQ(clus,{library(RSForInvt);gc()})
         res=parallel::parLapplyLB(clus,coms,shell);gc()
         gc();parallel::stopCluster(clus);gc()
