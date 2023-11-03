@@ -58,7 +58,7 @@ sqlite_to_raster = function(
   ,format = ".img"
   ,dirOut = "E:\\projects\\2017_NAIP\\rasters\\"
   ,raster_prefix = ""
-  ,crs = NA
+  ,wkt2 = NA
   ,nProc = 4
   ,doDebug=F
   ,doBuild=F
@@ -66,7 +66,7 @@ sqlite_to_raster = function(
   ,big_raster = F
 ){
 
-  if(nProc>1) raster::beginCluster(nProc)
+  #if(nProc>1) raster::beginCluster(nProc)
 
   if(!class(db)=="SQLiteConnection"){
     db_in = DBI::dbConnect(RSQLite::SQLite(), db)
@@ -74,35 +74,22 @@ sqlite_to_raster = function(
     db_in = db
   }
 
+  #setup output directory
+  if(!dir.exists(dirOut)) dir.create(dirOut)
+   gc()
+
   debugRows = 5000000; options(scipen=10E6)
 
   #get xy to make base raster
-  #sql_xy = paste("select", paste(paste(colsxy,paste(" = round(",colsxy,")")) , collapse=" , "),"from",tb_gm,"where", colsxy[1],"NOT NULL and 'total.all.returns' > 0")
-  sql_xy = paste("select", paste(colsxy , collapse=" , "), "from",tb_gm,"where", colsxy[1],"NOT NULL and total_all_returns > 0")
-  
-  if(doDebug) xy = dbGetQuery(db_in,paste(sql_xy,"limit",debugRows))
-  else xy = dbGetQuery(db_in , sql_xy )
-  if(!dir.exists(dirOut)) dir.create(dirOut)
-  gc()
+    sql_xy = paste("select", paste(paste(colsxy,paste(" = round(",colsxy,")")) , collapse=" , "),"from",tb_gm,"where", colsxy[1],"NOT NULL and 'total.all.returns' > 0")
+    sql_xy = paste("select", paste(colsxy , collapse=" , "), "from",tb_gm,"where", colsxy[1],"NOT NULL and total_all_returns > 0")
 
-  print("make coordinate raster")
-  xy = round(xy)
-  r0 = raster::rasterFromXYZ(xy , digits=1, res=res)
-  
-  if(F) {
-    yvec = (unique(xy[,2]) - min(xy[,2])) / 30 
-    unique(diff(sort(yvec)))
-  }
-  #get ids for raster cells
-  ids = raster::cellFromXY(r0, xy[,colsxy])
-  rm(xy);gc()
-  r0[] = NA;gc()
+    if(doDebug) xy = dbGetQuery(db_in,paste(sql_xy,"limit",debugRows))
+    else xy = dbGetQuery(db_in , sql_xy )
+    xy = round(xy)
 
-  print("make coordinate raster: completed")
-  
 
   print("make individual rasters")
-  
   for(i in 1:length(cols2Raster)){
 
     print(paste("start:",cols2Raster[i],"at",Sys.time()))
@@ -111,14 +98,16 @@ sqlite_to_raster = function(
 
     if(set9999[1] != -9999 ){ dati[dati[,1] == -9999 ,1] = set9999[1] }
 
-    r0[ids] = dati[,1]
-    outi = file.path(dirOut,paste(raster_prefix,cols2Raster[i],format,sep=""))
-    raster::writeRaster(r0,outi,overwrite=TRUE,crs = crs)
+    #make raster
+    ri = terra::rast(cbind(xy,dati), type="xyz", crs=wkt2)
 
+    #write to file
+    outi = file.path(dirOut,paste(raster_prefix,cols2Raster[i],format,sep=""))
+    terra::writeRaster(ri,outi,overwrite=TRUE)
     print(paste("complete:",cols2Raster[i],"at",Sys.time()))
 
   }
-  if(nProc>1) raster::endCluster()
+
   if(!class(db)=="SQLiteConnection") dbDisconnect(db_in)
 }
 
