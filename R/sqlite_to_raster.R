@@ -179,7 +179,7 @@ colsSomeX = function(thresh="6_00")return(gsub("XXTHRESHXX",thresh,c('ht_minimum
 colsFewX = function(thresh="6_00")return(gsub("XXTHRESHXX",thresh,c('ht_minimum','ht_maximum','ht_mean','ht_stddev','ht_p05','ht_p20','ht_p60','ht_p90','percentage_first_returns_above_XXTHRESHXX')))
 
 
-if(T){
+if(F){
 
 
   options(scipen = 10E6)
