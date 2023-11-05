@@ -18,7 +18,7 @@ run_gridmetrics(
   first = T,
   intensity = F,
   outlier = c(-5, 400),
-  fusion_switches = "/nointensity /first /failnoz",
+  fusion_switches = "/nointensity /failnoz",
   xmn = NA,
   xmx = NA,
   ymn = NA,

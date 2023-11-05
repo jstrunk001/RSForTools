@@ -18,7 +18,7 @@ sqlite_to_raster(
   format = ".img",
   dirOut = "E:\\\\projects\\\\2017_NAIP\\\\rasters\\\\",
   raster_prefix = "",
-  crs = NA,
+  wkt2 = NA,
   nProc = 4,
   doDebug = F,
   doBuild = F,
@@ -51,13 +51,13 @@ colsFewX(thresh = "6_00")
 
 \item{raster_prefix}{give a name to rasters for id purposes}
 
-\item{crs}{proj4 string or other crs notation used by raster package (see writeRaster)}
-
 \item{nProc}{number of cores to use in converting to raster}
 
 \item{doDebug}{run in debug mode and only read 50k rows?}
 
 \item{thresh}{character string like "2_50" that matches height representation in column names in tb_gm}
+
+\item{crs}{proj4 string or other crs notation used by raster package (see writeRaster)}
 }
 \value{
 <Delete and Replace>
