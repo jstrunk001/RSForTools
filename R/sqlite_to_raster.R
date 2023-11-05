@@ -60,21 +60,12 @@ sqlite_to_raster = function(
   ,dirOut = "E:\\projects\\2017_NAIP\\rasters\\"
   ,raster_prefix = ""
   ,wkt2 = NA
-<<<<<<< HEAD
   ,nproc = 4
-=======
-  ,nProc = 4
->>>>>>> 9f4364542e5f99f8a8888ee9ee9bc58021a2e838
   ,doDebug=F
   ,debugRows = 5000000
   ,set9999 = c(0,NA,-9999)
 ){
 
-<<<<<<< HEAD
-=======
-  #if(nProc>1) raster::beginCluster(nProc)
-
->>>>>>> 9f4364542e5f99f8a8888ee9ee9bc58021a2e838
   if(!class(db)=="SQLiteConnection"){
     db_in = DBI::dbConnect(RSQLite::SQLite(), db)
   }else{
@@ -85,11 +76,10 @@ sqlite_to_raster = function(
   if(!dir.exists(dirOut)) dir.create(dirOut)
    gc()
 
-<<<<<<< HEAD
+
    options(scipen=10E6)
-=======
+
   debugRows = 5000000; options(scipen=10E6)
->>>>>>> 9f4364542e5f99f8a8888ee9ee9bc58021a2e838
 
   #get xy to make base raster
     sql_xy = paste("select", paste(paste(colsxy,paste(" = round(",colsxy,")")) , collapse=" , "),"from",tb_gm,"where", colsxy[1],"NOT NULL and 'total.all.returns' > 0")
@@ -99,15 +89,9 @@ sqlite_to_raster = function(
     else xy = dbGetQuery(db_in , sql_xy )
     xy = round(xy)
 
-
-<<<<<<< HEAD
   if(nproc==1){
     print("make individual rasters")
     for(i in 1:length(cols2Raster)){
-=======
-  print("make individual rasters")
-  for(i in 1:length(cols2Raster)){
->>>>>>> 9f4364542e5f99f8a8888ee9ee9bc58021a2e838
 
       print(paste("start:",cols2Raster[i],"at",Sys.time()))
       if(doDebug) dati = dbGetQuery(db_in,paste("select",cols2Raster[i],"from",tb_gm,"limit",debugRows))
@@ -115,7 +99,6 @@ sqlite_to_raster = function(
 
       if(set9999[1] != -9999 ){ dati[dati[,1] == -9999 ,1] = set9999[1] }
 
-<<<<<<< HEAD
       #make raster
       ri = terra::rast(cbind(xy,dati), type="xyz", crs=wkt2)
 
@@ -155,27 +138,16 @@ sqlite_to_raster = function(
                  , format=format
                  , doDebug=doDebug
                  , debugRows=debugRows
+                 , tb_gm = tb_gm
+                 , wkt2 = wkt2
                  )
 
   }
 
-=======
-    #make raster
-    ri = terra::rast(cbind(xy,dati), type="xyz", crs=wkt2)
-
-    #write to file
-    outi = file.path(dirOut,paste(raster_prefix,cols2Raster[i],format,sep=""))
-    terra::writeRaster(ri,outi,overwrite=TRUE)
-    print(paste("complete:",cols2Raster[i],"at",Sys.time()))
-
-  }
-
-  if(!class(db)=="SQLiteConnection") dbDisconnect(db_in)
->>>>>>> 9f4364542e5f99f8a8888ee9ee9bc58021a2e838
 }
 
 #function to process rasters
-  .fn_proc=function(nm,set9999,dirOut,raster_prefix,format,doDebug, debugRows){
+  .fn_proc=function(nm,set9999,dirOut,raster_prefix,format,doDebug, debugRows,tb_gm, wkt2){
 
     #read and prep data
     if(doDebug) dati = RSQLite::dbGetQuery(get("db_in",envir = .GlobalEnv),paste("select",nm,"from",tb_gm,"limit",debugRows))
