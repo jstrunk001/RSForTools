@@ -50,13 +50,15 @@ colsFewX(thresh = "6_00")
 
 \item{raster_prefix}{give a name to rasters for id purposes}
 
+\item{wkt2}{crs approach used by terra or sf,}
+
 \item{nproc}{number of cores to use in converting to raster}
 
 \item{doDebug}{run in debug mode and only read 50k rows?}
 
 \item{thresh}{character string like "2_50" that matches height representation in column names in tb_gm}
 
-\item{crs}{proj4 string or other crs notation used by raster package (see writeRaster)}
+\item{debugRow}{number of rows to test / debug on}
 }
 \value{
 <Delete and Replace>
@@ -74,7 +76,19 @@ Revision History
 }
 }
 \examples{
- <Delete and Replace>
+
+  dir_sqlite = "D:/temp/OR_dap_gridmetrics_sqlite/"
+  nms_x1b = c('ht_p90','percentage_all_returns_above_3_00','profile_area','ht_mode','ht_stddev','ht_p05','ht_p10','ht_p50','canopy_relief_ratio','ht_mean')
+  #function not compiled yet, from lasR package, have to source it..
+  sqlite_to_raster(file.path(dir_sqlite,"OR2022_NAIP_Metrics.db")
+                   #,cols2Raster = c("ht_p90", "ht_p30","canopy_relief_ratio","percentage_first_returns_above_6_00")
+                   , dirOut = "d:/temp/or_dap_2022_gridmetrics_raster/"
+                   , wkt2 = terra::crs("EPSG:6557")
+                   , cols2Raster = nms_x1b
+                   , nproc = 5
+                   , doDebug=T
+                   )
+
 
 }
 \seealso{
