@@ -155,7 +155,7 @@ csv_to_sqlite=function(
     parallel::clusterEvalQ(clus,
      {
         library(RSQLite)
-        library(RSForTools)
+        #library(RSForInvt)
         dbGlobal <- dbConnect(SQLite(), dbname = db_path , sychronous = "normal")
         res <- dbSendQuery(dbGlobal, "PRAGMA busy_timeout=50000;")
         gc()
