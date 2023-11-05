@@ -19,11 +19,10 @@ sqlite_to_raster(
   dirOut = "E:\\\\projects\\\\2017_NAIP\\\\rasters\\\\",
   raster_prefix = "",
   wkt2 = NA,
-  nProc = 4,
+  nproc = 4,
   doDebug = F,
-  doBuild = F,
-  set9999 = c(0, NA, -9999),
-  big_raster = F
+  debugRows = 5e+06,
+  set9999 = c(0, NA, -9999)
 )
 
 colsAll(thresh = "6_00")
@@ -51,7 +50,7 @@ colsFewX(thresh = "6_00")
 
 \item{raster_prefix}{give a name to rasters for id purposes}
 
-\item{nProc}{number of cores to use in converting to raster}
+\item{nproc}{number of cores to use in converting to raster}
 
 \item{doDebug}{run in debug mode and only read 50k rows?}
 
