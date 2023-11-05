@@ -188,7 +188,7 @@ run_gridmetrics=function(
   #skip existing files
   if(skip_existing){
     files_done = list.files(gm_out,pattern="[.]csv")
-    ids_done = gsub("_.*","",files_done)
+    ids_done = gsub("tile_|_all.*|_first.*","",files_done)
     files_exist = as.character(proj_polys_in[,"tile_id",drop=T]) %in% ids_done
     proj_polys_in=subset(proj_polys_in,subset=!files_exist)
   }
