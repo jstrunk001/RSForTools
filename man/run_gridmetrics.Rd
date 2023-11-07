@@ -26,6 +26,7 @@ run_gridmetrics(
   new_dtm_path = c(from = NA, to = NA),
   new_las_path = list(from = NA, to = c(NA, NA), prop = c(0.6, 0.4)),
   skip_existing = T,
+  subset_tiles = NA,
   existing_coms = c(NA,
     "C:\\\\dir_proc\\\\run_gridmetrics\\\\2017Aug17_100740\\\\all_commands.txt"),
   do_run = T,

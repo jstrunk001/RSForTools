@@ -54,7 +54,7 @@
 #'
 
 #'
-#'@import parallel rgdal raster
+#'@import parallel sf terra
 #'
 #'@export
 #
@@ -90,6 +90,7 @@ run_gridmetrics=function(
   ,new_las_path = list(from = NA, to = c(NA,NA), prop=c(.6,.4)) #in case drive paths are wrong (e.g. External drives...)
 
   ,skip_existing = T
+  ,subset_tiles = NA
 
   ,existing_coms = c(NA,"C:\\dir_proc\\run_gridmetrics\\2017Aug17_100740\\all_commands.txt")   #skip setting up new dtm and las files
 
@@ -109,7 +110,6 @@ run_gridmetrics=function(
 
   requireNamespace("parallel")
   requireNamespace("raster")
-  requireNamespace("rgdal")
 
   #time stamp for outputs
   proc_time=format(Sys.time(),"%Y%b%d_%H%M%S")
@@ -192,6 +192,10 @@ run_gridmetrics=function(
     files_exist = as.character(proj_polys_in[,"tile_id",drop=T]) %in% ids_done
     proj_polys_in=subset(proj_polys_in,subset=!files_exist)
   }
+  if(!is.na(subset_tiles[1])){
+    proj_polys_in=subset( proj_polys_in , subset=proj_polys_in$tile_id %in% subset_tiles )
+  }
+
   print("skip files");print(Sys.time())
 
   #prepare output directory
@@ -248,16 +252,20 @@ run_gridmetrics=function(
 
         clus=parallel::makeCluster(n_core,setup_strategy = "sequential")
         #clusterEvalQ(clus,{library(RSForInvt);gc()})
-        res=parallel::parLapplyLB(clus,coms,shell);gc()
+        res=parallel::parLapplyLB(clus,coms,function(x)try(shell(x)));gc()
         gc();parallel::stopCluster(clus);gc()
 
       }else{
 
        #writeClipboard(coms[1])
        #testing if(F) lapply(coms[110:200],shell) ;gc()
-       lapply(coms,shell) ;gc()
+       lapply(coms,function(x)try(shell(x))) ;gc()
 
       }
+
+
+
+
       print("run fusion (done)");print(Sys.time())
     }
 

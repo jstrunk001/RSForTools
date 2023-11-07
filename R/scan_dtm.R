@@ -41,7 +41,7 @@
 #'@examples
 #'  <Delete and Replace>
 #'
-#'@import maptools sp uuid DBI
+#'@import sf uuid DBI
 #'
 #'@export
 #

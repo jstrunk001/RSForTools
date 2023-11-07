@@ -47,5 +47,5 @@ Revision History
 \code{\link{scan_las}}\cr \code{\link{read_las}}\cr
 }
 \author{
-Jacob Strunk <Jstrunk@fs.fed.us>
+Jacob Strunk <strunky@gmail.com>
 }

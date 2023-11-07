@@ -41,7 +41,7 @@
 #'
 #'scan_las(project="test1", project_year="2015",dir_las="C:\\temp\\lidar_test\\",con=con_inv)
 #'
-#'@import maptools sp uuid lidR DBI
+#'@import sf uuid lidR DBI
 #'
 #'@export
 #
@@ -113,7 +113,7 @@ scan_las=function(
       ,load_date = proc_date
       ,file_path = dir_las
       ,notes = notes
-      ,wkt2 = wkt2
+      ,wkt2 = as.character(wkt2)
     )
     write.csv(project_id_df, project_id_csv,row.names=F)
 

@@ -31,7 +31,7 @@
 #'@examples
 #'  <Delete and Replace>
 #'
-#'@import parallel
+#'@import parallel raster
 #'
 #'@export
 #

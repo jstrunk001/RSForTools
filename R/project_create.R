@@ -62,7 +62,7 @@
 #' )
 #'
 #'
-#'@import DBI RSQLite data.table rgdal rgeos sp raster
+#'@import DBI RSQLite data.table sf terra
 #'
 #'@export
 #
@@ -108,10 +108,8 @@ project_create=function(
   requireNamespace("DBI")
   requireNamespace("RSQLite")
   requireNamespace("data.table")
-  requireNamespace("rgdal")
-  requireNamespace("rgeos")
-  requireNamespace("sp")
-  requireNamespace("raster")
+  requireNamespace("terra")
+  requireNamespace("sf")
   requireNamespace("plyr")
 
   warning("UPDATE ME!!! Allow me to 'update' intersections without complete reset")
@@ -182,7 +180,7 @@ project_create=function(
 
   #mask if desired
     if(!is.na(mask[1])){
-      mask1=rgeos::gBuffer(mask,width=tile_size,capStyle="square")
+      mask1=sf::st_buffer(mask,dit=tile_size,endCapStyle="SQUARE")
       proc_poly1 = terra::crop(proc_poly1,mask1)
     }
     print("completed: mask to sub extent");print(Sys.time())

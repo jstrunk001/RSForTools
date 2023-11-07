@@ -44,9 +44,8 @@
 #'@examples
 #'
 #'    res= xy2FIAplot(data.frame(plot=1:10, x=101:110*10000, y=101:110*10000),create_polys=T)
-#'    mapview::mapview(res)
 #'
-#'@import dplyr plyr sf rgeos
+#'@import dplyr plyr sf
 #'
 #'@export
 #

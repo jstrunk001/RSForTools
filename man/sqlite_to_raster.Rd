@@ -22,7 +22,7 @@ sqlite_to_raster(
   nproc = 4,
   doDebug = F,
   debugRows = 5e+06,
-  set9999 = c(0, NA, -9999)
+  set9999 = c(NA, -9999, 0)
 )
 
 colsAll(thresh = "6_00")
