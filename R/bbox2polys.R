@@ -22,7 +22,7 @@
 #'
 #'@author
 #'
-#'Jacob Strunk <Jstrunk@@fs.fed.us>
+#'Jacob Strunk <strunky@@gmail.com>
 #'
 #'@param df_ext a data.frame with 4 columns of coordinates: minx, maxx, miny, and maxy indicating bounding boxes or extents
 #'@param cols_ext a named vector with names 'xmin','xmax','ymin','ymax' indicating where bound box coordinates are stored
@@ -36,7 +36,6 @@
 #'
 #'@import sf
 #'
-#'@export
 #
 #'@seealso \code{\link{scan_las}}\cr \code{\link{read_las}}\cr
 
