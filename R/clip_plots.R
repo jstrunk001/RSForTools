@@ -49,7 +49,7 @@
 #'@examples
 #'  <Delete and Replace>
 #'
-#'@import rgdal plyr rgeos raster lidR data.table parallel terra
+#'@import plyr lidR data.table parallel
 #'
 #'@export
 #
@@ -82,10 +82,7 @@ clip_plots=function(
 
 ){
   if(interactive()){
-    require(rgdal)
     require(plyr)
-    require(rgdal)
-    require(rgeos)
     require(raster)
     require(lidR)
     require(data.table)
@@ -139,9 +136,7 @@ clip_plots=function(
   }
 
   if(do_plot ){
-    mapview::mapview(proj_polys, col.regions="blue") + mapview::mapview(pl_dtm_las, col.regions="red")
-    #plot(proj_polys[,1])
-    #plot(pl_dtm_las[,1],col="red",add=T,lwd=10)
+
   }
   if(!is.na(dir_dtm)){
     spl_dtm = lapply(pl_dtm_las$file_path.dtm, function(x,newdir) file.path(newdir,basename(unlist(strsplit(x,",")))) , dir_dtm)
