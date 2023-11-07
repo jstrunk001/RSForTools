@@ -1,7 +1,7 @@
 Package: RSForTools
 Type: Package
 Title: This package works with remote sensing data to support forest inventory related tasks
-Version: 0.1.0
+Version: 0.2.0
 Author: Jacob Strunk
 Maintainer: Jacob Strunk <strunky@gmail.com>
 Description: A collection of data processing tools and helper primarily motivated by remote sensing forestry related applications. 
@@ -29,10 +29,8 @@ Imports:
         ,dplyr
         ,flextable
         ,flock
-        ,gdalUtils
         ,lidR
         ,lubridate        
-        ,maptools
         ,MLmetrics
         ,odbc
         ,rlas
@@ -41,8 +39,6 @@ Imports:
         ,plyr 
         ,raster
         ,reshape2
-        ,rgdal
-        ,rgeos
         ,RODBC
         ,RSQLite
         ,sf
@@ -51,3 +47,6 @@ Imports:
         ,sqldf
         ,Thermimage
         ,uuid
+Suggests: 
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
