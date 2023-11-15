@@ -24,7 +24,7 @@
 #'@param n_core number of corest to run process on
 #'@param gridmetrics_path where is gridmetrics.exe (FUSION)
 #'@param heightbreak Height break for cover calculation
-#'@param cellsize output raster resolution
+#'@param cellsize override the cellsize set in project create
 #'@param minht set minht for gridmetrics.ex
 #'@param first T/F use only first returns
 #'@param intensity T/F include intensity metrics
@@ -69,8 +69,8 @@
 
 run_gridmetrics=function(
 
-   proj_polys = NA
-  ,proj_gpkg_path = NA
+  # proj_polys = NA
+  proj_gpkg_path = NA
   ,layer_proj_polys = "RSForInvt_prj"
   ,layer_proj_config = "RSForInvt_config"
   ,dir_out = "c:/dir_proc/test_project/gridmetrics"
@@ -78,7 +78,7 @@ run_gridmetrics=function(
   ,gridmetrics_path = "c:\\fusion\\gridmetrics64.exe"
   ,heightbreak = 3
   ,minht = NA
-  ,cellsize = 66
+  ,cellsize = NA
   ,first = T
   ,intensity = F
   ,outlier = c(-5,400)
@@ -128,16 +128,21 @@ run_gridmetrics=function(
   coms_out=file.path(dir_proc_time,"all_commands.txt")
 
  #load project
-  if("sf" %in% class(proj_polys)){
-    proj_polys_in = proj_polys
-  }
+  # if("sf" %in% class(proj_polys)){
+  #   proj_polys_in = proj_polys
+  # }
 
-  if(!("sf" %in% class(proj_polys)) & !is.na(proj_gpkg_path ) ){
-    proj_polys_in = sf::st_read(dsn=proj_gpkg_path , layer = layer_proj_polys )
-  }
-  if(!("sf" %in% class(proj_polys)) & is.na(proj_gpkg_path ) ) stop("must provide either proj_polys or proj_gpkg_path")
+  #load project
+  if(is.na(proj_gpkg_path ) ) stop("provide path to project: argument proj_gpkg_path ")
+  proj_polys_in = sf::st_read(dsn=proj_gpkg_path , layer = layer_proj_polys )
+  proj_cfg_in = try(sf::st_read(dsn=proj_gpkg_path , layer = layer_proj_config ), silent=T)
 
-  print("load project");print(Sys.time())
+  #load the cellsize
+  cfg_cellsize = proj_cfg_in$pixel_size
+  if(!is.na(cellsize)) if(cellsize != cfg_cellsize) warning("cellsize provided to run_gridmetrics: ", cellsize, " does not match RSForInvt_config: ",cfg_cellsize )
+  if(is.na(cellsize)) cellsize = cfg_cellsize
+
+  print("project loaded");print(Sys.time())
   #fix drive paths in lasR_project
 
   #rename paths in case files have moved
