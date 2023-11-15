@@ -245,14 +245,25 @@ run_gridmetrics=function(
     #the commands are now randomly selected to help with file interference
     rm(proj_polys_in);gc()
 
-    set.seed(50)
+
     if(do_run){
       if(n_core>1 ){
         print("begin parallel processing");print(Sys.time())
 
-        clus=parallel::makeCluster(n_core,setup_strategy = "sequential")
+        fn_proc = function(x, dir_out){
+          file_out = paste0(dir_out,"/gridmetrics_messages_", Sys.getpid(), ".txt")
+          y = try( system(x,intern=T))
+          write(paste(y, collapse=" /n" ), file=file_out, append=T)
+          gc()
+        }
+        set.seed(50)
+        clus=parallel::makeCluster(n_core)#,setup_strategy = "sequential")
+        #parallel::clusterExport(clus,varlist=list("dir_proc_time"), envir = environment())
+        #parallel::clusterEvalQ(clus, sink(paste0(dir_proc_time,"/gridmetrics_messages_", Sys.getpid(), ".txt")))
         #clusterEvalQ(clus,{library(RSForInvt);gc()})
-        res=parallel::parLapplyLB(clus,coms,function(x)try(shell(x)));gc()
+        #res=parallel::parLapplyLB(clus,sample(coms,length(coms)),function(x) try( shell(x,intern=T)) );gc()
+        res=parallel::parLapplyLB( clus , sample(coms,length(coms)) , fn_proc , dir_out = dir_proc_time );gc()
+        #res=parallel::parLapplyLB( clus , sample(coms,length(coms)) , fn_proc , dir_out = dir_out );gc()
         gc();parallel::stopCluster(clus);gc()
 
       }else{

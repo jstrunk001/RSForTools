@@ -102,7 +102,7 @@ csv_to_sqlite=function(
   tb_exist=dbListTables(db_in)
 
   #prep data table - get column names
-  dat0=read.csv(csv_files[1])
+  dat0=read.csv(csv_files[1], nrows = 50)
   names(dat0)=gsub("elev","ht",gsub("[.]+","_",gsub("^x[.]","",tolower(names(dat0)))))
   names0=names(dat0)
   col_classes=sapply(dat0,class)
@@ -129,7 +129,7 @@ csv_to_sqlite=function(
   #prep / read summary table
   if(!tb_summary %in% tb_exist | !skip_loaded){
 
-    summ0=data.frame(date=as.character(Sys.Date()),file="",nrows=0,status="")
+    summ0=data.frame(date=as.character(Sys.Date()),file="",path="",identifier="",nrows=0,status="")
     dbWriteTable(db_in,tb_summary,summ0[0,],overwrite = TRUE,append=F)
 
   }else{
@@ -237,7 +237,9 @@ csv_to_sqlite=function(
 
         #write summary record
         if(!class(err_i) == "try-error"){
-          summ_i=data.frame(date=as.character(Sys.Date()),file=csv_file_i,nrows=nrow(dati),status="completed")
+          #populate ID field
+          id_in =  if("identifier" %in% names(dati)) dati$identifier[1] else NA
+          summ_i=data.frame(date=as.character(Sys.Date()),file=basename(csv_file_i),path=csv_file_i,id=id_in,nrows=nrow(dati),status="completed")
           try(dbWriteTable(dbGlobal,tb_summary,summ_i,append=T))
         }
 

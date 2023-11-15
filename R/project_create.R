@@ -117,6 +117,8 @@ project_create=function(
   #create project folder
   project_path = dir_out
   if(!dir.exists(project_path)) dir.create(project_path,recursive=T)
+  configuration_path = file.path(dir_out,"configuration/")
+  if(!dir.exists(configuration_path)) dir.create(configuration_path,recursive=T)
 
   #match tile size with pixel size
   tile_pixel_ratio = tile_size / pixel_size
@@ -126,14 +128,14 @@ project_create=function(
   }
 
   #inventory las and dtms
-  if(do_scan_las) scan_las(project=project_las, project_year=las_year, dir_las=dir_las, dir_out=project_path, create_polys=T , recursive = recurse_las , wkt2 = wkt2)
+  if(do_scan_las) scan_las(project=project_las, project_year=las_year, dir_las=dir_las, dir_out=configuration_path, create_polys=T , recursive = recurse_las , wkt2 = wkt2)
   print("scan_las");print(Sys.time())
-  if(do_scan_dtms) scan_dtm(project=project_dtm, project_year=dtm_year,dir_dtm=dir_dtm, dir_out=project_path, create_polys=T , recursive = recurse_dtm , wkt2 = wkt2)
+  if(do_scan_dtms) scan_dtm(project=project_dtm, project_year=dtm_year,dir_dtm=dir_dtm, dir_out=configuration_path, create_polys=T , recursive = recurse_dtm , wkt2 = wkt2)
   print("scan_dtm");print(Sys.time())
 
   #file names
-  path_dtm_proj=paste(dir_out,"/manage_dtm.gpkg",sep="")
-  path_las_proj=paste(dir_out,"/manage_las.gpkg",sep="")
+  path_dtm_proj=paste(configuration_path,"/manage_dtm.gpkg",sep="")
+  path_las_proj=paste(configuration_path,"/manage_las.gpkg",sep="")
 
   #read in las and dtm polygons
   las_polys = sf::st_read(dsn = path_las_proj,"las_polys")
@@ -161,19 +163,33 @@ project_create=function(
   las_polys1=sf::st_buffer(las_polys,dist=round(pixel_size*4+1),endCapStyle="SQUARE");gc()
   print("completed: buffer las and dtm polygons");print(Sys.time())
 
+  #provide extent if not provided
+  min1=function(x){y=x[!is.na(x)];min(y[ x>1 ])}
+  if(is.na(xmn[1])) xmn = floor(min1(las_polys1$min_x) -pixel_size)
+  if(is.na(ymn[1])) ymn = floor(min1(las_polys1$min_y) -pixel_size)
+  if(is.na(xmx[1])) xmx = ceiling(max1(las_polys1$max_x) +pixel_size)
+  if(is.na(xmx[1])) ymx = ceiling(max1(las_polys1$max_y) +pixel_size)
+
   #create processing tiles
+  print("start: build processing tiles ");print(Sys.time())
     #create tiles as raster
     proc_rast = terra::rast(xmin=xmn,xmax=xmx,ymin=ymn,ymax=ymx,resolution=tile_size,crs=wkt2_in);gc()
+    print("completed: build processing raster ");print(Sys.time())
     #load tiles with unique ids
-    proc_rast[] = 1:terra::ncell(proc_rast)
+    proc_rast[] = 1:(terra::ncell(proc_rast))
+    print("completed: load raster with ids");print(Sys.time())
     #name tile_id column
     names(proc_rast)="tile_id"
+    print("completed: name raster field ");print(Sys.time())
     #get coordinates for cells
     xy = terra::as.data.frame(proc_rast,xy=T)
+    print("completed: create data.frame of xy and tile ids ");print(Sys.time())
     #convert raster to polygon
     proc_poly = sf::st_as_sf(terra::as.polygons(proc_rast,  na.rm=TRUE, digits=12, aggregate=FALSE))
+    print("completed: buffer grid cells by desire cell extents ");print(Sys.time())
     #get coordinates for bounding boxes in proc_poly tiles
     proc_bbx = do.call(rbind,lapply(split(proc_poly,proc_poly$tile_id),sf::st_bbox))
+    print("completed: create tile scheme ");print(Sys.time())
     #combine processing tiles with bbox coordinates
     proc_poly1 = sf::st_as_sf(data.frame(tile_id = proc_poly[,"tile_id",drop=T],proc_bbx,proc_poly[,"geometry"] ))
     print("completed: create tile scheme ");print(Sys.time())
@@ -249,7 +265,7 @@ project_create=function(
 
   #create config file and summary
     df_config = data.frame(
-      dir_out = dir_out
+      dir_out = configuration_path
       ,layer_project = layer_project
       ,layer_config  =  layer_config
       ,layer_las_buf = "las_tiles_bfr"
@@ -285,7 +301,7 @@ project_create=function(
   #prepare geopackage details
 
     #get output name
-      path_gpkg_out = paste0(dir_out,"/",layer_project,"_RSprj.gpkg")
+      path_gpkg_out = paste0(configuration_path,"/",layer_project,"_RSprj.gpkg")
     #write project polygons to FRESH geopackage - overwrite!
       try(sf::st_write(obj = tiles_coords , dsn = path_gpkg_out , layer = layer_project, driver="GPKG",  append=FALSE ))
 

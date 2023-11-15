@@ -25,9 +25,10 @@
 #'@param format  raster formate  e.g. .tif , .img etc
 #'@param dirOut  where to export rasters
 #'@param raster_prefix give a name to rasters for id purposes
-#'@param crs  proj4 string or other crs notation used by raster package (see writeRaster)
+#'@param wkt2  crs approach used by terra or sf,
 #'@param nproc  number of cores to use in converting to raster
 #'@param doDebug run in debug mode and only read 50k rows?
+#'@param debugRow number of rows to test / debug on
 #'
 #'@param thresh character string like "2_50" that matches height representation in column names in tb_gm
 #'
@@ -36,9 +37,21 @@
 #'  <Delete and Replace>
 #'
 #'@examples
-#'  <Delete and Replace>
 #'
-#'@import raster DBI
+#'   dir_sqlite = "D:/temp/OR_dap_gridmetrics_sqlite/"
+#'   nms_x1b = c('ht_p90','percentage_all_returns_above_3_00','profile_area','ht_mode','ht_stddev','ht_p05','ht_p10','ht_p50','canopy_relief_ratio','ht_mean')
+#'   #function not compiled yet, from lasR package, have to source it..
+#'   sqlite_to_raster(file.path(dir_sqlite,"OR2022_NAIP_Metrics.db")
+#'                    #,cols2Raster = c("ht_p90", "ht_p30","canopy_relief_ratio","percentage_first_returns_above_6_00")
+#'                    , dirOut = "d:/temp/or_dap_2022_gridmetrics_raster/"
+#'                    , wkt2 = terra::crs("EPSG:6557")
+#'                    , cols2Raster = nms_x1b
+#'                    , nproc = 5
+#'                    , doDebug=T
+#'                    )
+#'
+#'
+#'@import terra
 #'
 #
 #'@seealso \code{\link{rasterFromXYZ}}\cr \code{\link{writeRaster}}\cr
@@ -55,6 +68,7 @@ sqlite_to_raster = function(
   ,tb_gm="gm"
   ,colsxy = c("center_x","center_y")
   ,cols2Raster = colsSomeX() # or colsAllX()
+  ,coltest = "total_all_returns"
   ,res=c(NA,NA)
   ,format = ".img"
   ,dirOut = "E:\\projects\\2017_NAIP\\rasters\\"
@@ -63,7 +77,10 @@ sqlite_to_raster = function(
   ,nproc = 4
   ,doDebug=F
   ,debugRows = 5000000
-  ,set9999 = c(0,NA,-9999)
+  ,set9999 = c(NA,-9999, 0)
+
+  ,sfmask=NA
+  #,skipExisting =T
 ){
 
   if(!class(db)=="SQLiteConnection"){
@@ -76,83 +93,152 @@ sqlite_to_raster = function(
   if(!dir.exists(dirOut)) dir.create(dirOut)
    gc()
 
+
    options(scipen=10E6)
 
   #get xy to make base raster
-    sql_xy = paste("select", paste(paste(colsxy,paste(" = round(",colsxy,")")) , collapse=" , "),"from",tb_gm,"where", colsxy[1],"NOT NULL and 'total.all.returns' > 0")
-    sql_xy = paste("select", paste(colsxy , collapse=" , "), "from",tb_gm,"where", colsxy[1],"NOT NULL and total_all_returns > 0")
+    #sql_xy = paste("select", paste(c(paste(colsxy,paste(" = round(",colsxy,")")), coltest ), collapse=" , "),"from",tb_gm,"where", colsxy[1],"NOT NULL and 'total.all.returns' > 0")
+    sql_xy = paste("select", paste(c(colsxy,coltest) , collapse=" , "), "from",tb_gm,"where", colsxy[1],"NOT NULL and total_all_returns > 0")
 
+    #get all coordinates for gridmetrics rasters
     if(doDebug) xy = dbGetQuery(db_in,paste(sql_xy,"limit",debugRows))
     else xy = dbGetQuery(db_in , sql_xy )
-    xy = round(xy)
+
+    #round off coordinates
+    xy[,colsxy] = round(xy[,colsxy])
+
+    #convert xy to rasters
+    r0 = terra::rast(xy, type="xyz", crs=wkt2)
+
+    #get cell ids - doesn't work on NA raster
+    cells_in = terra::cellFromXY(r0,xy=xy[,colsxy])
+
+    #create binary mask
+    if("sf" %in% class(sfmask)){
+       #add 1 within polygon mask extent, leave everything else the same
+       mask_in = r0
+       mask_in[1:terra::ncell(mask_in)] = 1
+       mask_in = terra::mask(mask_in,mask=sfmask,inverse=F,updatevalue=NA)
+    }
 
 
+  #process sequentally
   if(nproc==1){
+
     print("make individual rasters")
     for(i in 1:length(cols2Raster)){
 
       print(paste("start:",cols2Raster[i],"at",Sys.time()))
       if(doDebug) dati = dbGetQuery(db_in,paste("select",cols2Raster[i],"from",tb_gm,"limit",debugRows))
-      else       dati = dbGetQuery(db_in,paste("select",cols2Raster[i],"from",tb_gm,"where", colsxy[1],"NOT NULL and 'total_all_returns' > 0"))
+      if(!doDebug)       dati = dbGetQuery(db_in,paste("select",cols2Raster[i],"from",tb_gm,"where", colsxy[1],"NOT NULL and 'total_all_returns' > 0"))
 
-      if(set9999[1] != -9999 ){ dati[dati[,1] == -9999 ,1] = set9999[1] }
+      #mask NA values from gridmetrics
+      if(is.na(set9999[1]) ){ dati[dati[,1] == -9999 ,1] = set9999[1] }
 
-      #make raster
-      ri = terra::rast(cbind(xy,dati), type="xyz", crs=wkt2)
+      #update raster values
+      r0[cells_in] = dati[,1]
 
-      #write to file
+      #mask outside polygon
+      if("sf" %in% class(sfmask)) r0 = r0*mask_in
+
+      #write if not masked
       outi = file.path(dirOut,paste(raster_prefix,cols2Raster[i],format,sep=""))
-      terra::writeRaster(ri,outi,overwrite=TRUE)
+      terra::writeRaster(r0,outi,overwrite=TRUE)
+
+      #provide
       print(paste("complete:",cols2Raster[i],"at",Sys.time()))
 
-    }
-
-  }
+    }# end for
+  }#end if
 
   #close database connection, new connections will be formed in each thread
   if(!class(db) == "SQLiteConnection" ) dbDisconnect(db_in)
 
+  #process in parallel
   if(nproc>1){
 
     if(class(db) == "SQLiteConnection" ) stop("db should be a character path to an sqlite database if nproc > 1")
 
+    #put temp raster onto the disk
+    path_temp_rast = file.path(dirOut,"temp_raster.tif")
+    terra::writeRaster(r0, path_temp_rast , overwrite=TRUE)
+
+    #test = terra::rast(path_temp_rast)
+
     #make parallel cluster
+    parallel:::setDefaultClusterOptions(setup_strategy = "sequential")
     clus_in = parallel::makeCluster(nproc)
 
-    #prepare parallel environment
-    parallel::clusterExport(clus_in, varlist=list("xy","db",".fn_proc"), envir = environment())
-    parallel::clusterEvalQ(cl = clus_in, {
-        db_in = DBI::dbConnect(RSQLite::SQLite(), db)
-        }
-      )
+    #export objects to parallel environment and prepare that environment
+    parallel::clusterExport(clus_in, varlist=list("xy","db","cells_in","wkt2","path_temp_rast"), envir = environment())
+    parallel::clusterEvalQ(clus_in, { rExt = terra::rast(path_temp_rast) })
 
-    #run in parallel
+    #export optional mask to parallel environment
+    if("sf" %in% class(sfmask)){
+      #write mask to disk
+      path_temp_mask = file.path(dirOut,"temp_mask.tif")
+      terra::writeRaster(mask_in, path_temp_mask , overwrite=TRUE)
+
+      #load in each cluster
+      parallel::clusterExport(clus_in, varlist=list("path_temp_mask"), envir = environment())
+      parallel::clusterEvalQ(clus_in, { maskExt = terra::rast(path_temp_mask) })
+    }
+
+    #read from db and write to disk in parallel
     parallel::parLapplyLB( clus_in
                  , cols2Raster
                  , .fn_proc
+                 , db = db
                  , set9999=set9999
                  , dirOut=dirOut
                  , raster_prefix=raster_prefix
                  , format=format
                  , doDebug=doDebug
                  , debugRows=debugRows
+                 , tb_gm = tb_gm
+                 #, wkt2 = wkt2
+                 , colsxy = colsxy
+                 , doMask = "sf" %in% class(sfmask)
                  )
+
+    #delete temporary processing rasters
+    unlink(path_temp_rast)
+    if("sf" %in% class(sfmask)) unlink(path_temp_mask)
+    parallel::stopCluster(clus_in)
 
   }
 
 }
 
 #function to process rasters
-  .fn_proc=function(nm,set9999,dirOut,raster_prefix,format,doDebug, debugRows){
+  .fn_proc=function(nm,set9999, db,dirOut,raster_prefix,format,doDebug, debugRows,tb_gm, colsxy, doMask){
+
+    #get base raster
+    ri = get("rExt",envir = .GlobalEnv)
+    if(doMask) maski = get("maskExt",envir = .GlobalEnv)
+    # #connect to dabase
+    db_in = DBI::dbConnect(RSQLite::SQLite(), db)
 
     #read and prep data
-    if(doDebug) dati = RSQLite::dbGetQuery(get("db_in",envir = .GlobalEnv),paste("select",nm,"from",tb_gm,"limit",debugRows))
-    else       dati = RSQLite::dbGetQuery(get("db_in",envir = .GlobalEnv),paste("select",nm,"from",tb_gm,"where", colsxy[1],"NOT NULL and 'total_all_returns' > 0"))
-    #make raster
-    ri = terra::rast(cbind(get("xy",envir = .GlobalEnv),dati), type="xyz", crs=wkt2)
+    if(doDebug) dati = RSQLite::dbGetQuery(db_in,paste("select",nm,"from",tb_gm,"limit",debugRows))
+    if(!doDebug) dati = RSQLite::dbGetQuery(db_in,paste("select",nm,"from",tb_gm,"where", colsxy[1],"NOT NULL and 'total_all_returns' > 0"))
+
+    #set -9999 values to NA
+    if(is.na(set9999[1]) ){ dati[dati[,1] == -9999 ,1] = set9999[1] }
+
+    #assign new values
+    ri[get("cells_in",envir = .GlobalEnv)] = dati[,1]
+
+    #mask if needed
+    if(doMask) ri = ri*maski
+
     #write to file
-    outi = file.path(dirOut,paste(raster_prefix,nm,format,sep=""))
-    terra::writeRaster(ri,outi,overwrite=TRUE)
+     outi = file.path(dirOut,paste(raster_prefix,nm,format,sep=""))
+     terra::writeRaster(ri,outi,overwrite=TRUE)
+
+    #clean up
+    DBI::dbDisconnect(db_in)
+    rm(ri);gc()
 
   }
 
@@ -179,7 +265,7 @@ colsSomeX = function(thresh="6_00")return(gsub("XXTHRESHXX",thresh,c('ht_minimum
 colsFewX = function(thresh="6_00")return(gsub("XXTHRESHXX",thresh,c('ht_minimum','ht_maximum','ht_mean','ht_stddev','ht_p05','ht_p20','ht_p60','ht_p90','percentage_first_returns_above_XXTHRESHXX')))
 
 
-if(T){
+if(F){
 
 
   options(scipen = 10E6)
@@ -212,6 +298,7 @@ if(T){
 
 
   library(RSQLite)
+  if(!"oregon" %in% ls()) oregon = sf::st_read("C:/Users/Jacob/Box/sync/data/GIS/OR/oregon_oregonLambert.gpkg")
   # library(RSForTools)
   dir_sqlite = "D:/temp/OR_dap_gridmetrics_sqlite/"
   if(F){
@@ -229,8 +316,10 @@ if(T){
                    , dirOut = "d:/temp/or_dap_2022_gridmetrics_raster/"
                    , wkt2 = terra::crs("EPSG:6557")
                    , cols2Raster = nms_x1b
-                   , nproc = 5
+                   , nproc = 10
                    , doDebug=T
+                   , debugRows = 5000000
+                   , sfmask=oregon
                    )
 
 

@@ -90,7 +90,7 @@ sqlite_to_raster = function(
   }
 
   #setup output directory
-  if(!dir.exists(dirOut)) dir.create(dirOut)
+  if(!dir.exists(dirOut)) dir.create(dirOut, recursive=T)
    gc()
 
 
@@ -170,8 +170,8 @@ sqlite_to_raster = function(
     clus_in = parallel::makeCluster(nproc)
 
     #export objects to parallel environment and prepare that environment
-    parallel::clusterExport(clus_in, varlist=list("xy","db","cells_in","wkt2","path_temp_rast"), envir = environment())
-    parallel::clusterEvalQ(clus_in, { rExt = terra::rast(path_temp_rast) })
+    parallel::clusterExport(clus_in, varlist=list("db","cells_in","wkt2","path_temp_rast"), envir = environment())
+    #parallel::clusterEvalQ(clus_in, { rExt = terra::rast(path_temp_rast) })
 
     #export optional mask to parallel environment
     if("sf" %in% class(sfmask)){
@@ -180,8 +180,8 @@ sqlite_to_raster = function(
       terra::writeRaster(mask_in, path_temp_mask , overwrite=TRUE)
 
       #load in each cluster
-      parallel::clusterExport(clus_in, varlist=list("path_temp_mask"), envir = environment())
-      parallel::clusterEvalQ(clus_in, { maskExt = terra::rast(path_temp_mask) })
+      #parallel::clusterExport(clus_in, varlist=list("path_temp_mask"), envir = environment())
+      #parallel::clusterEvalQ(clus_in, { maskExt = terra::rast(path_temp_mask) })
     }
 
     #read from db and write to disk in parallel
@@ -199,6 +199,7 @@ sqlite_to_raster = function(
                  #, wkt2 = wkt2
                  , colsxy = colsxy
                  , doMask = "sf" %in% class(sfmask)
+                 , path_template = path_temp_rast
                  )
 
     #delete temporary processing rasters
@@ -211,11 +212,11 @@ sqlite_to_raster = function(
 }
 
 #function to process rasters
-  .fn_proc=function(nm,set9999, db,dirOut,raster_prefix,format,doDebug, debugRows,tb_gm, colsxy, doMask){
+  .fn_proc=function(nm, path_template,set9999, db,dirOut,raster_prefix,format,doDebug, debugRows,tb_gm, colsxy, doMask){
 
     #get base raster
-    ri = get("rExt",envir = .GlobalEnv)
-    if(doMask) maski = get("maskExt",envir = .GlobalEnv)
+    ri = terra::rast(path_template)
+
     # #connect to dabase
     db_in = DBI::dbConnect(RSQLite::SQLite(), db)
 
@@ -228,9 +229,14 @@ sqlite_to_raster = function(
 
     #assign new values
     ri[get("cells_in",envir = .GlobalEnv)] = dati[,1]
+    names(ri) = nm
 
     #mask if needed
-    if(doMask) ri = ri*maski
+    if(doMask){
+      path_temp_mask = file.path(dirOut,"temp_mask.tif")
+      maski = terra::rast(path_temp_mask)
+      ri = ri*maski
+    }
 
     #write to file
      outi = file.path(dirOut,paste(raster_prefix,nm,format,sep=""))

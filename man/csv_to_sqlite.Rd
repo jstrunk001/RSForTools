@@ -18,7 +18,7 @@ csv_to_sqlite(
   n_load = NA,
   use_col_classes = T,
   ncore = 4,
-  dir_status = "c:\\\\temp\\\\csv_to_sqlite_status\\\\some_project\\\\"
+  dir_status = file.path(csv_folder, "progress_tracking")
 )
 }
 \arguments{

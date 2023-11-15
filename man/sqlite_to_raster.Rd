@@ -14,6 +14,7 @@ sqlite_to_raster(
   tb_gm = "gm",
   colsxy = c("center_x", "center_y"),
   cols2Raster = colsSomeX(),
+  coltest = "total_all_returns",
   res = c(NA, NA),
   format = ".img",
   dirOut = "E:\\\\projects\\\\2017_NAIP\\\\rasters\\\\",
@@ -22,7 +23,8 @@ sqlite_to_raster(
   nproc = 4,
   doDebug = F,
   debugRows = 5e+06,
-  set9999 = c(NA, -9999, 0)
+  set9999 = c(NA, -9999, 0),
+  sfmask = NA
 )
 
 colsAll(thresh = "6_00")
