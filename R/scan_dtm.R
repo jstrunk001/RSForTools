@@ -78,9 +78,9 @@ scan_dtm=function(
 
 
   #prepare / read project_id file
-  project_id_csv=paste(dir_out,"project_id.csv",sep="")
-  dtm_id_csv=paste(dir_out,"dtm_id.csv",sep="")
-  dtm_gpkg=file.path(dir_out,"manage_dtm.gpkg",sep="")
+  project_id_csv=file.path(dir_out,"project_id.csv")
+  dtm_id_csv=file.path(dir_out,"dtm_id.csv")
+  dtm_gpkg=file.path(dir_out,"manage_dtm.gpkg")
 
   #create out directory if missing
   if(!dir.exists(dir_out)) dir.create(dir_out,recursive=T)

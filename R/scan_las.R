@@ -75,9 +75,9 @@ scan_las=function(
   if(length(files_las)==0) stop("'scan_las' argument dir_las is not a directory or is empty")
 
   #prepare / read project_id file
-  project_id_csv = paste0(dir_out ,"project_id.csv")
-  las_id_csv = paste(dir_out,"las_id.csv",sep="")
-  las_gpkg = file.path(dir_out,"manage_las.gpkg",sep="")
+  project_id_csv = file.path(dir_out ,"project_id.csv")
+  las_id_csv = file.path(dir_out,"las_id.csv")
+  las_gpkg = file.path(dir_out,"manage_las.gpkg")
 
   #create out directory if missing
   if(!dir.exists(dir_out)) dir.create(dir_out,recursive=T)
