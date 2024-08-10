@@ -258,7 +258,7 @@ run_gridmetrics=function(
         fn_proc = function(x, dir_out){
           file_out = paste0(dir_out,"/gridmetrics_messages_", Sys.getpid(), ".txt")
           y = try( system(x,intern=T))
-          write(paste(y, collapse=" /n" ), file=file_out, append=T)
+          write(paste(y, collapse=" \n" ), file=file_out, append=T)
           gc()
         }
         set.seed(50)

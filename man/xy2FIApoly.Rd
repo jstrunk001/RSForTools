@@ -8,6 +8,7 @@ xy2FIApoly(
   idxy,
   names = c(plot = "plot", x = "x", y = "y"),
   create_polys = T,
+  combine_subplots = T,
   width = 24,
   endCapStyle = "ROUND",
   offx = c(`2` = 0, `3` = 103.923, `4` = -103.923),

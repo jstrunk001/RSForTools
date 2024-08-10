@@ -5,7 +5,6 @@
 \title{run gridmetrics across a project}
 \usage{
 run_gridmetrics(
-  proj_polys = NA,
   proj_gpkg_path = NA,
   layer_proj_polys = "RSForInvt_prj",
   layer_proj_config = "RSForInvt_config",
@@ -14,7 +13,7 @@ run_gridmetrics(
   gridmetrics_path = "c:\\\\fusion\\\\gridmetrics64.exe",
   heightbreak = 3,
   minht = NA,
-  cellsize = 66,
+  cellsize = NA,
   first = T,
   intensity = F,
   outlier = c(-5, 400),
@@ -43,7 +42,7 @@ run_gridmetrics(
 
 \item{minht}{set minht for gridmetrics.ex}
 
-\item{cellsize}{output raster resolution}
+\item{cellsize}{override the cellsize set in project create}
 
 \item{first}{T/F use only first returns}
 

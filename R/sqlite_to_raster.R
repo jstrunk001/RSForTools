@@ -115,10 +115,11 @@ sqlite_to_raster = function(
 
     #create binary mask
     if("sf" %in% class(sfmask)){
+       sfmask_in = sf::st_transform(sfmask, sf::st_crs(r0))
        #add 1 within polygon mask extent, leave everything else the same
        mask_in = r0
        mask_in[1:terra::ncell(mask_in)] = 1
-       mask_in = terra::mask(mask_in,mask=sfmask,inverse=F,updatevalue=NA)
+       mask_in1 = terra::mask(mask_in,mask=sfmask_in,inverse=F,updatevalue=NA)
     }
 
 
@@ -139,16 +140,18 @@ sqlite_to_raster = function(
       r0[cells_in] = dati[,1]
 
       #mask outside polygon
-      if("sf" %in% class(sfmask)) r0 = r0*mask_in
+      if("sf" %in% class(sfmask_in)) r0 = r0*mask_in
 
       #write if not masked
       outi = file.path(dirOut,paste(raster_prefix,cols2Raster[i],format,sep=""))
-      terra::writeRaster(r0,outi,overwrite=TRUE)
+      names(r0) = cols2Raster[i]
+      terra::writeRaster(r0,filename=outi,overwrite=TRUE)
 
       #provide
       print(paste("complete:",cols2Raster[i],"at",Sys.time()))
 
     }# end for
+
   }#end if
 
   #close database connection, new connections will be formed in each thread
@@ -177,12 +180,14 @@ sqlite_to_raster = function(
     if("sf" %in% class(sfmask)){
       #write mask to disk
       path_temp_mask = file.path(dirOut,"temp_mask.tif")
-      terra::writeRaster(mask_in, path_temp_mask , overwrite=TRUE)
+      terra::writeRaster(mask_in1, path_temp_mask , overwrite=TRUE)
 
       #load in each cluster
       #parallel::clusterExport(clus_in, varlist=list("path_temp_mask"), envir = environment())
       #parallel::clusterEvalQ(clus_in, { maskExt = terra::rast(path_temp_mask) })
     }
+
+
 
     #read from db and write to disk in parallel
     parallel::parLapplyLB( clus_in
@@ -201,6 +206,23 @@ sqlite_to_raster = function(
                  , doMask = "sf" %in% class(sfmask)
                  , path_template = path_temp_rast
                  )
+
+   # if(F)     lapply(
+   #                cols2Raster
+   #               , .fn_proc
+   #               , db = db
+   #               , set9999=set9999
+   #               , dirOut=dirOut
+   #               , raster_prefix=raster_prefix
+   #               , format=format
+   #               , doDebug=doDebug
+   #               , debugRows=debugRows
+   #               , tb_gm = tb_gm
+   #               #, wkt2 = wkt2
+   #               , colsxy = colsxy
+   #               , doMask = "sf" %in% class(sfmask)
+   #               , path_template = path_temp_rast
+   #               )
 
     #delete temporary processing rasters
     unlink(path_temp_rast)
@@ -225,7 +247,11 @@ sqlite_to_raster = function(
     if(!doDebug) dati = RSQLite::dbGetQuery(db_in,paste("select",nm,"from",tb_gm,"where", colsxy[1],"NOT NULL and 'total_all_returns' > 0"))
 
     #set -9999 values to NA
-    if(is.na(set9999[1]) ){ dati[dati[,1] == -9999 ,1] = set9999[1] }
+    if(is.na(set9999[1]) ){
+      idx_9999 = dati[,1] == -9999
+      idx_9999[is.na(idx_9999)] = F
+      dati[idx_9999,1] = set9999[1]
+    }
 
     #assign new values
     ri[get("cells_in",envir = .GlobalEnv)] = dati[,1]

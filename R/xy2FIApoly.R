@@ -66,11 +66,13 @@ xy2FIApoly=function(
                       idxy
                     , names=c(plot="plot",x="x",y="y")
                     , create_polys=T
+                    , combine_subplots=T
                     , width=24
                     , endCapStyle="ROUND"
                     , offx = c("2"=0,"3"=103.923,"4"=-103.923)
                     , offy = c("2"=120,"3"=-60,"4"=-60)
                     ){
+
 
   # sqrt((120*cos(pi/6))^2+(120*sin(pi/6))^2)
 
@@ -79,17 +81,18 @@ xy2FIApoly=function(
   names["subplot"]="subplot"
   idxy[,names["subplot"]]=1
 
-  dat2=idxy
+  #prepare individual subplots
+  dat2=as.data.frame(idxy,drop=T)
   dat2[,names["subplot"]]=2
   dat2[,names["x"]]=dat2[,names["x"]] + offx["2"]
-  dat2[,names["y"]]=idxy[,names["y"]] + offy["2"]
+  dat2[,names["y"]]=dat2[,names["y"]] + offy["2"]
 
-  dat3=idxy
+  dat3=as.data.frame(idxy,drop=T)
   dat3[,names["subplot"]]=3
   dat3[,names["x"]]=dat3[,names["x"]] + offx["3"]
   dat3[,names["y"]]=dat3[ , names["y"] ] + offy["3"]
 
-  dat4=idxy
+  dat4=as.data.frame(idxy,drop=T)
   dat4[,names["subplot"]]=4
   dat4[,names["x"]]=dat4[,names["x"]] + offx["4"]
   dat4[,names["y"]]=dat4[,names["y"]] + offy["4"]
@@ -103,18 +106,22 @@ xy2FIApoly=function(
     requireNamespace("dplyr")
 
     #create sf object
-    sf_dat0 = st_as_sf(df_all,coords=names[c("x","y")])
+    sf_dat0 = sf::st_as_sf(df_all,coords=names[c("x","y")])
 
-    #group subplots by plot
-    sf_dat1 = dplyr::group_by_at(sf_dat0, .vars=names["plot"])
+    if(combine_subplots){
+      #group subplots by plot
+      sf_dat1 = dplyr::group_by_at(sf_dat0, .vars=names["plot"])
 
-    #merge geometries into single plot
-    sf_dat2 = dplyr::summarise(sf_dat1,geometry = sf::st_union(geometry))
+      #merge geometries into single plot
+      sf_dat2 = as.data.frame(dplyr::summarise(sf_dat1,geometry = sf::st_union(geometry)))
 
-    #buffer by desired amount
-    sf_dat3 = st_buffer(sf_dat2 , width , endCapStyle = endCapStyle)
+      #buffer by desired amount
+      sf_dat3 = sf::st_buffer(sf::st_as_sf(sf_dat2) , width , endCapStyle = endCapStyle)
 
-    return(sf_dat3)
+      return(sf_dat3)
+    }
+    if(!combine_subplots) return(sf_dat0)
+
   }
 
   if(!create_polys) return(df_all)

@@ -227,13 +227,13 @@
 
     #volume and area metrics
       #all points
-      #mets_in[["xyAreaAll"]] = nrow(combnsxy) * resxy^2 #DEPRECATED
+      mets_in[["xyAreaAll"]] = nrow(combnsxy) * resxy^2 #DEPRECATED
       mets_in[["gridAreaAll"]] = nrow(combnsxy) * resxy^2
       #points above threshdol
-      #mets_in[["xyArea"]] = nrow(combnsxy1) * resxy^2 #DEPRECATED
+      mets_in[["xyArea"]] = nrow(combnsxy1) * resxy^2 #DEPRECATED
       mets_in[["gridArea"]] = nrow(combnsxy1) * resxy^2
       #rescale using over ht threshold to all
-      mets_in["areaCover"] = round(100*mets_in[["xyArea"]] / mets_in[["xyAreaAll"]],2)
+      mets_in["areaCover"] = round(100*mets_in[["gridArea"]] / mets_in[["gridAreaAll"]],2)
       #rescale using plot area
       mets_in["areaScl"] = round( 100 * mets_in[["xyArea"]] / mets_in[["xyAreaAll"]] ,2 )
 
