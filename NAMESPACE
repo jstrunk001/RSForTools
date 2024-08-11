@@ -2,6 +2,7 @@
 
 export(accuracy_thematic)
 export(bbox2polys)
+export(catalog1)
 export(clip_plots)
 export(clip_plots_fusion)
 export(colsAll)

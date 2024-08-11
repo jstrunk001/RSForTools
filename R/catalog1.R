@@ -6,7 +6,7 @@
 #'
 #'@details
 #'
-#'
+#'  (Whatever license that JR has on lidR or the following)
 #'  This program is free software but it is provided WITHOUT WARRANTY
 #'  and with ABSOLUTELY NO GUARANTEE of fitness or functionality for any purpose;
 #'  you can redistribute it and/or modify it under the terms of the GNU
@@ -22,9 +22,9 @@
 #'
 #'@author
 #'
-#'Jacob Strunk <something@@something.com>
+#'Jean Romaine and borrowed / modified by Jacob Strunk <something@@something.com>
 #'
-#'@param folder
+#'@param folder ?
 #'@param  progress  ?
 #'@param  select  ?
 #'@param  filter  ?
@@ -39,11 +39,9 @@
 #'@examples
 #'  <Delete and Replace>
 #'
-#'@import some_package some_package2
 #'
 #'@export
 #
-#'@seealso \code{\link{another_function}}\cr \code{\link{yet_another_function}}\cr
 
 #Desired upgrades to this function:
 #
@@ -66,24 +64,24 @@ catalog1 = function (
     , chunk_size = 0
     , chunk_buffer = 30
     , ...
-    ) 
+    )
 {
 
   lidR:::assert_is_character(folder)
   finfo <- file.info(folder)
-  if (all(is.na(finfo$isdir))) 
+  if (all(is.na(finfo$isdir)))
     stop(glue::glue("'{folder}' does not exist."), call. = FALSE)
-  else if (all(!finfo$isdir)) 
+  else if (all(!finfo$isdir))
     files <- normalizePath(folder)
   else {
     p <- list(...)
     p$path <- folder
     p$full.names <- TRUE
-    if (is.null(p$pattern)) 
+    if (is.null(p$pattern))
       p$pattern <- "(?i)\\.la(s|z)$"
     files <- do.call(list.files, p)
   }
-  browser()  
+
   #verbose("Reading files...")
   if (length(files) == 1L && tools::file_ext(files) == "vpc") {
     headers = lidR:::read_vpc(files)
@@ -109,8 +107,8 @@ catalog1 = function (
       if(class(header) == "try-error") return(NULL)
       PHB <- header@PHB
       names(PHB) <- phblab
-      #if (lidR:::use_wktcs(header)) 
-      if (T) 
+      #if (lidR:::use_wktcs(header))
+      if (T)
         PHB[["CRS"]] <- wkt(header)
       else PHB[["CRS"]] <- epsg(header)
       if (!is.null(PHB[["Number.of.points.by.return"]])) {
@@ -123,8 +121,8 @@ catalog1 = function (
         PHB[["Global.Encoding"]] <- NULL
       }
       if (progress && Sys.time() - t0 > getOption("lidR.progress.delay")) {
-        if (is.null(pb)) 
-          pb <<- utils::txtProgressBar(min = 0, max = length(files), 
+        if (is.null(pb))
+          pb <<- utils::txtProgressBar(min = 0, max = length(files),
                                        initial = i, style = 3)
         utils::setTxtProgressBar(pb, i)
       }
@@ -133,7 +131,7 @@ catalog1 = function (
       return(PHB)
     })
   }
- 
+
   headers <- data.table::rbindlist(headers)
   #headers$filename <- files
   data.table::setDF(headers)
@@ -144,7 +142,7 @@ catalog1 = function (
   ids <- as.character(seq_along(headers$filename))
 
   geom <- lapply(seq_along(ids), function(xi) {
-    mtx <- matrix(c(xmin[xi], xmax[xi], ymin[xi], ymax[xi])[c(1, 
+    mtx <- matrix(c(xmin[xi], xmax[xi], ymin[xi], ymax[xi])[c(1,
                                                               1, 2, 2, 1, 3, 4, 4, 3, 3)], ncol = 2)
     sf::st_polygon(list(mtx))
   })
@@ -158,7 +156,7 @@ catalog1 = function (
   opt_chunk_size(res) <- chunk_size
   opt_chunk_buffer(res) <- chunk_buffer
   opt_progress(res) <- progress
-  if (is.overlapping(res)) 
+  if (is.overlapping(res))
     message("Be careful, some tiles seem to overlap each other. lidR may return incorrect outputs with edge artifacts when processing this catalog.")
   return(res)
 }

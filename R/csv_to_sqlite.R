@@ -31,6 +31,7 @@
 #'@param csv_folder location of csv files
 #'@param tb_summary output name of summary table of csv files
 #'@param tb_csv table to dump csv files into
+#'@param csv_pattern pattern used by list.files to find relevant files. Only load one gridmetrics file type at a time c(".*elevation.*[.]csv",".*intensity.*[.]csv",".*topo.*[.]csv")
 #'@param project name of project
 #'@param resolution resolution of input data
 #'@param units unites of resolution
@@ -72,6 +73,7 @@ csv_to_sqlite=function(
                        ,csv_folder
                        ,tb_summary="gm_summary"
                        ,tb_csv="gm"
+                       ,csv_pattern = ".*elevation.*[.]csv"
                        ,project="naip_2015"
                        ,resolution="66"
                        ,units="feet"
@@ -94,7 +96,7 @@ csv_to_sqlite=function(
 
   if(interactive()) requireNamespace("RSQLite")
 
-  csv_files=list.files(csv_folder,full.names=T,pattern="[.]csv")
+  csv_files=list.files(csv_folder,full.names=T,pattern=csv_pattern)
 
   if(length(csv_files)<1) stop("no csv files in 'csv_folder' supplied directory")
 
