@@ -229,7 +229,7 @@ csv_to_sqlite=function(
       #match names / number of cols
       dati=dati[,1:length(names1)]
       names(dati)=names1
-      dati=dati[ dati[,"total_all_returns"] > -1 , ]
+      if("total_all_returns" %in% names(dati)) dati=dati[ dati[,"total_all_returns"] > -1 , ]
 
       ll = flock::lock(lock.name)
 
@@ -241,7 +241,7 @@ csv_to_sqlite=function(
         if(!class(err_i) == "try-error"){
           #populate ID field
           id_in =  if("identifier" %in% names(dati)) dati$identifier[1] else NA
-          summ_i=data.frame(date=as.character(Sys.Date()),file=basename(csv_file_i),path=csv_file_i,id=id_in,nrows=nrow(dati),status="completed")
+          summ_i=data.frame(date=as.character(Sys.Date()),file=basename(csv_file_i),path=csv_file_i,identifier=id_in,nrows=nrow(dati),status="completed")
           try(dbWriteTable(dbGlobal,tb_summary,summ_i,append=T))
         }
 
