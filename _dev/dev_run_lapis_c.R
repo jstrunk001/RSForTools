@@ -54,7 +54,7 @@
 #'
 
 #'
-#'@import parallel sf terra
+#'@import parallel sf terra stringr
 #'
 #'@export
 #
@@ -64,10 +64,20 @@
 #' 1. fix issues with mismatched tile size and cell size
 #' 2. allow dynamic update of tile sizes
 #'
+#'Note from Jonathan Kane (developer) on implementing bbox approach:
 #'
+#' As for specifying by an aoi instead of by files, that option does actually
+#' exist! But it's incomplete at the moment, so I removed it from the gui to
+#' avoid confusion. But it's still an undocumented feature that can be accessed
+#' through the command line/ini file. If you specify the four variables
+#' aoixmin, aoixmax, aoiymin, and aoiymax, it should limit the processing to
+#' the rectangle of interest. By default, you specify these four in the same
+#' CRS as the output files, or you can specify which CRS you're using
+#' with the variable aoicrs.
 #'
+#
 
-run_gridmetrics=function(
+run_lapis=function(
 
   # proj_polys = NA
   proj_gpkg_path = NA
@@ -75,16 +85,7 @@ run_gridmetrics=function(
   ,layer_proj_config = "RSForInvt_config"
   ,dir_out = "c:/dir_proc/test_project/gridmetrics"
   ,n_core = 4
-  ,gridmetrics_path = "c:\\fusion\\gridmetrics64.exe"
-  ,heightbreak = 3
-  ,minht = NA
-  ,cellsize = NA
-  ,first = T
-  ,intensity = F
-  ,outlier = c(-5,400)
-  ,fusion_switches = "/nointensity /failnoz"
-  ,xmn = NA , xmx= NA , ymn=NA , ymx=NA
-
+  ,path_lapis = "c:\\lapis\\lapis.exe"
 
   ,new_dtm_path = c(from = NA, to = NA) #in case drive paths are wrong (e.g. External drives...)
   ,new_las_path = list(from = NA, to = c(NA,NA), prop=c(.6,.4)) #in case drive paths are wrong (e.g. External drives...)
@@ -92,19 +93,61 @@ run_gridmetrics=function(
   ,skip_existing = T
   ,subset_tiles = NA
 
-  ,existing_coms = c(NA,"C:\\dir_proc\\run_gridmetrics\\2017Aug17_100740\\all_commands.txt")   #skip setting up new dtm and las files
+  ,existing_coms = c(NA,"C:\\dir_proc\\run_lapis\\2017Aug17_100740\\all_commands.txt")   #skip setting up new dtm and las files
 
   ,do_run = T
 
   ,debug = F
 
-  ,... #additonal arguments to fns
+  #,... #additonal arguments to fns
+
+  ,lapis_args = list(
+        "--ini-file" = NULL
+      , "--cellsize" = NA
+      , "--xres" = NA
+      , "--yres" = NA
+      , "--csm-cellsize" = 66
+      , "--las-crs" = NA
+      , "--las-units" = C(NA,"intfeet","meters")[1]
+      , "--dem-crs" = NA
+      , "--dem-units" = C(NA,"intfeet","meters")[1]
+      , "--out-crs" = NA
+      , "--user-units" = C(NA,"intfeet","meters")[1]
+      , "--xorigin" = NA
+      , "--yorigin" = NA
+      , "--minht" = -10
+      , "--maxht" = 400
+      , "--class" = NA
+      , "--user-units" = NA
+      #, "-N" = "Run_Name"
+      , "--canopy" = 6
+      , "--strata" = paste(c(0,5,10,15,20,seq(25,100,25),200, 400),collapse=",")
+      , "--adv-point"
+      , "--fine-int"
+    )
+
+ # ,lapis_args = list(
+ #      path_ini = NA
+ #      ,path_A = NA
+ #      ,metrics_cellsize = 66
+ #      ,csm_cellsize = 9
+ #      ,out_crs = NA
+ #      ,min_ht = -10
+ #      ,max_ht = 400
+ #      ,las_class = NA
+ #      ,user_units = NA
+ #      ,run_name = NA
+ #      ,ht_canopy = 6
+ #      ,strata = c(0,5,10,15,20,seq(25,100,25),200, 400)
+ #      ,all_metrics = F
+ #      ,fine_intensity = F
+ #    )
 
   ){
 
   warning("If project cell size doesn't match gridmetrics cell size (or multiple), you are probably causing problems")
 
-  if(is.na(minht)) minht = heightbreak
+  #if(is.na(minht)) minht = heightbreak
 
   options(scipen = 999)
 
@@ -139,8 +182,8 @@ run_gridmetrics=function(
 
   #load the cellsize
   cfg_cellsize = proj_cfg_in$pixel_size
-  if(!is.na(cellsize)) if(cellsize != cfg_cellsize) warning("cellsize provided to run_gridmetrics: ", cellsize, " does not match RSForInvt_config: ",cfg_cellsize )
-  if(is.na(cellsize)) cellsize = cfg_cellsize
+  #if(!is.na(cellsize)) if(cellsize != cfg_cellsize) warning("cellsize provided to run_gridmetrics: ", cellsize, " does not match RSForInvt_config: ",cfg_cellsize )
+  #if(is.na(cellsize)) cellsize = cfg_cellsize
 
   print("project loaded");print(Sys.time())
   #fix drive paths in lasR_project
@@ -190,8 +233,6 @@ run_gridmetrics=function(
     proj_polys_in[,"las_file"] = las_new
   }
 
-  print(paste(nrow(proj_polys_in),"total tiles in project"))
-
   #skip existing files
   if(skip_existing){
     files_done = list.files(gm_out,pattern="[.]csv")
@@ -203,88 +244,129 @@ run_gridmetrics=function(
     proj_polys_in=subset( proj_polys_in , subset=proj_polys_in$tile_id %in% subset_tiles )
   }
 
-  print("skip tiles");print(Sys.time())
+  print("skip files");print(Sys.time())
 
-  #prepare output directory
-  proj_polys_in[,"outf"]=.bs(file.path(gm_out,paste0("tile_",proj_polys_in[,"tile_id",drop=T],".csv")))
-  print(paste(nrow(proj_polys_in),"tiles to process after skipping processed tiles"))
+  #prepare lapis commands
+    #prepare las and tif files
+    files_las_in = paste0("-L ",gsub(","," -L ",proj_polys_in$las_file))
+    warning("temporary bad hack on line 235: rename .dtm to .tif etc...")
+    #proj_polys_in$dtm_file = gsub("[.]dtm",".tif",gsub("_fusion","_tif",proj_polys_in$dtm_file))
+    files_dtm_in = paste0("-D ",gsub(","," -D ",proj_polys_in$dtm_file))
 
-  #prepare batch commands
-    proj_polys_in[,"dtm_txt"] = .bs(paste(dir_proc_time,.bs(proj_polys_in[,"tile_id",drop=T]),"_dtm.txt",sep=""))
-    proj_polys_in[,"las_txt"] = .bs(paste(dir_proc_time,.bs(proj_polys_in[,"tile_id",drop=T]),"_las.txt",sep=""))
-    proj_polys_in[,"switches"] = paste("/minht:",minht
-                              ," /outlier:",paste(outlier,collapse=",")
-                              ," /cellbuffer:2 /gridxy:"
-                              ,apply(round(proj_polys_in[,c("xmin","ymin","xmax","ymax"),drop=T]),1,paste,collapse=",")
-                              ,sep="")
+    #create output subdirectory by tile id, otherwise lapis will delete the folder
+    max_tile_chars = max(nchar(proj_polys_in$tile_id))
+    pad_tiles = stringr::str_pad(proj_polys_in$tile_id, max_tile_chars+1, pad="0")
+    cmds_tiles_out = paste("-O",file.path(dir_out,paste0("subtiles/tile_",proj_polys_in$tile_id)))
+    cmds_in_out = paste(cmds_tiles_out, files_las_in,files_dtm_in)
 
-    if(!is.null(fusion_switches)){
-      gmpath = paste(paste0('"',gridmetrics_path[1],'"'),fusion_switches)
-    }else{
-      gmpath = paste0('"',gridmetrics_path[1],'"')
-    }
+    #prep generic named lapis arguments
 
-    coms_df=data.frame(gm=gmpath
-                         ,sw=proj_polys_in[,c("switches"),drop=T]
-                         ,ids=paste("/id:",proj_polys_in[,"tile_id",drop=T],sep="")
-                         ,dtms=.bs(proj_polys_in[,c("dtm_txt"),drop=T])
-                         ,hb=heightbreak
-                         ,cs=cellsize
-                         ,outf=.bs(proj_polys_in[,"outf",drop=T])
-                         ,las=.bs(proj_polys_in[,"las_txt",drop=T])
-                         )
+      #grab rest of named arguments
+      isnull_args = sapply(lapis_args,is.null)
+      isna_args = is.na(lapis_args)
+      isnamed_args = sapply(names(lapis_args),nchar) > 0
+      lapis_args_nm = lapis_args[!isna_args & !isnull_args & isnamed_args]
 
-    coms=apply(coms_df,1,paste,collapse=" ")
-    print("set up commands");print(Sys.time())
-
-    if(is.na(existing_coms[1]) ){
-
-      writeLines(coms,.bs(coms_out))
-
-      for(i in 1:nrow(proj_polys_in)){
-        writeLines(gsub(",","\n",.bs(proj_polys_in[i,"las_file",drop=T])),proj_polys_in[i,"las_txt",drop=T])
-        writeLines(gsub(",","\n",.bs(proj_polys_in[i,"dtm_file",drop=T])),proj_polys_in[i,"dtm_txt",drop=T])
+      #replace project name with tile name
+      txt_tile_id = paste("XXtile_",proj_polys_in[,c("tile_id"),drop=T],sep="")
+      if("-N" %in% names(lapis_args_nm)){
+        txt_tile_id = paste(lapis_args_nm["-N"],paste("XXtile_",proj_polys_in[,c("tile_id"),drop=T],sep=""),sep="_")
+        lapis_args_nm["-N"] = NULL
       }
-      print("create and write list of dtms and las files");print(Sys.time())
+
+      cmds_args_nm = paste(apply(cbind(names(lapis_args_nm),lapis_args_nm),1,paste, collapse=" "), collapse=" ")
+      cmds_args_nm_id = paste("-N",txt_tile_id ,cmds_args_nm , collapse=" ")
+
+    #prep generic Unnamed lapis arguments
+    lapis_args_un = lapis_args[!isnamed_args]
+    cmds_args_un = paste(lapis_args_un, collapse= " ")
+
+    #prepare bounding box
+    #aoixmin, aoixmax, aoiymin, and aoiymax
+    cmds_bbx = paste(apply(
+                  cbind(paste("aoixmin", proj_polys_in[,c("xmin"),drop=T])
+                  , paste("aoixmax", proj_polys_in[,c("xmax"),drop=T])
+                  , paste("aoiymin", proj_polys_in[,c("ymin"),drop=T])
+                  , paste("aoiymax", proj_polys_in[,c("ymax"),drop=T])
+                  )
+               ,1, paste, collapse= " ") #end apply
+              ,sep=" ") #end paste
+
+    #final set of generic arguments
+    cmds_args_nm_un = paste(txt_tile_id, cmds_args_nm, cmds_args_un, sep=" ")
+
+    #combine command with arguments - clean up white space
+    drive_nm = paste0(gsub(":.*","",path_lapis),": &")
+    #cmds_call_lapis = paste(drive_nm,"cd",dirname(path_lapis),"&", path_lapis)
+    cmds_call_lapis = paste("cd",dirname(path_lapis),"&", path_lapis)
+    cmds_all = paste(cmds_call_lapis,cmds_bbx, cmds_args_nm_un , cmds_in_out,sep=" ")
+
+    #get rid of double and triple spaces
+    cmds_lapis = gsub("[  ]"," ",gsub("[  ]"," ",cmds_all))
+
+    #browser()
+    #stop("the code below is a test hack")
+    #if(T) err = shell(cmds_lapis[25])
+
+
+
+    #modify to write out .ini files instead of long command line arguments?
+    if(F){
+      if(is.na(existing_coms[1]) ){
+
+        writeLines(coms,.bs(coms_out))
+
+        for(i in 1:nrow(proj_polys_in)){
+          writeLines(gsub(",","\n",.bs(proj_polys_in[i,"las_file",drop=T])),proj_polys_in[i,"las_txt",drop=T])
+          writeLines(gsub(",","\n",.bs(proj_polys_in[i,"dtm_file",drop=T])),proj_polys_in[i,"dtm_txt",drop=T])
+        }
+        print("create and write list of dtms and las files");print(Sys.time())
+      }
     }
+
+    print("set up commands");print(Sys.time())
 
     #get identical behavior if debugging
     #the commands are now randomly selected to help with file interference
     rm(proj_polys_in);gc()
 
-
     if(do_run){
+
+      #debugging hack
+      if(F) cmds_lapis = cmds_lapis[1:50]
+
       if(n_core>1 ){
         print("begin parallel processing");print(Sys.time())
 
         fn_proc = function(x, dir_out){
-          file_out = paste0(dir_out,"/gridmetrics_messages_", Sys.getpid(), ".txt")
-          y = try( system(x,intern=T))
+          file_out = paste0(dir_out,"/lapis_messages_", Sys.getpid(), ".txt")
+          y = try( shell(x,intern=T))
           write(paste(y, collapse=" \n" ), file=file_out, append=T)
           gc()
         }
         set.seed(50)
         clus=parallel::makeCluster(n_core)#,setup_strategy = "sequential")
-        #parallel::clusterExport(clus,varlist=list("dir_proc_time"), envir = environment())
-        #parallel::clusterEvalQ(clus, sink(paste0(dir_proc_time,"/gridmetrics_messages_", Sys.getpid(), ".txt")))
-        #clusterEvalQ(clus,{library(RSForInvt);gc()})
-        #res=parallel::parLapplyLB(clus,sample(coms,length(coms)),function(x) try( shell(x,intern=T)) );gc()
-        res=parallel::parLapplyLB( clus , sample(coms,length(coms)) , fn_proc , dir_out = dir_proc_time );gc()
-        #res=parallel::parLapplyLB( clus , sample(coms,length(coms)) , fn_proc , dir_out = dir_out );gc()
+
+        res=parallel::parLapplyLB( clus , sample( cmds_lapis,length( cmds_lapis)) , fn_proc , dir_out = dir_proc_time );gc()
+
+        if(F){
+          set.seed(50);res=parallel::parLapplyLB( clus , sample( cmds_lapis,10) , fn_proc , dir_out = dir_proc_time );gc()
+          set.seed(50);res=parallel::parLapplyLB( clus , sample( cmds_lapis,3) , shell );gc()
+        }
         gc();parallel::stopCluster(clus);gc()
 
       }else{
 
        #writeClipboard(coms[1])
        #testing if(F) lapply(coms[110:200],shell) ;gc()
-       lapply(coms,function(x)try(shell(x))) ;gc()
+       lapply( cmds_lapis,function(x)try(shell(x))) ;gc()
 
       }
 
 
 
 
-      print("run fusion (done)");print(Sys.time())
+      print("run lapis (done)");print(Sys.time())
     }
 
 }

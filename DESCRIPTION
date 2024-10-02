@@ -45,6 +45,7 @@ Imports:
         ,sp
         ,spatstat
         ,sqldf
+        ,stringr
         ,Thermimage
         ,terra
         ,uuid

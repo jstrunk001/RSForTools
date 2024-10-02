@@ -12,6 +12,7 @@
 #'Revision History
 #' \tabular{ll}{
 #'1.0 \tab 3/16/2020 Function created \cr
+#'1.0 \tab 8/16/2024 remove col_test argument - now handled while reading csvs \cr
 #'}
 #'
 #'@author
@@ -22,6 +23,7 @@
 #'@param tb_gm which table has gridmetrics data
 #'@param colsxy  names of xy columns
 #'@param cols2Raster which columns to grab
+#@param col_test use this column to identify pixels with zero returns
 #'@param format  raster formate  e.g. .tif , .img etc
 #'@param dirOut  where to export rasters
 #'@param raster_prefix give a name to rasters for id purposes
@@ -68,7 +70,7 @@ sqlite_to_raster = function(
   ,tb_gm="gm"
   ,colsxy = c("center_x","center_y")
   ,cols2Raster = colsSomeX() # or colsAllX()
-  ,coltest = "total_all_returns"
+  #,col_test = "total_all_returns"
   ,res=c(NA,NA)
   ,format = ".img"
   ,dirOut = "E:\\projects\\2017_NAIP\\rasters\\"
@@ -77,8 +79,7 @@ sqlite_to_raster = function(
   ,nproc = 4
   ,doDebug=F
   ,debugRows = 500000
-  ,set9999 = c(NA,-9999, 0)
-
+  ,set9999 = c(0,NA,-9999)
   ,sfmask=NA
   #,skipExisting =T
 ){
@@ -97,7 +98,7 @@ sqlite_to_raster = function(
    options(scipen=10E6)
 
   #get xy to make base raster
-    #sql_xy = paste("select", paste(c(paste(colsxy,paste(" = round(",colsxy,")")), coltest ), collapse=" , "),"from",tb_gm,"where", colsxy[1],"NOT NULL and 'total.all.returns' > 0")
+    #sql_xy = paste("select", paste(c(paste(colsxy,paste(" = round(",colsxy,")")), col_test ), collapse=" , "),"from",tb_gm,"where", colsxy[1],"NOT NULL and 'total.all.returns' > 0")
 
   #make generic sql script
     sql_all = c("select", "REPLACE_ME", paste("from",tb_gm,"where", colsxy[1],"NOT NULL"))
@@ -156,8 +157,9 @@ sqlite_to_raster = function(
       dati = dbGetQuery(db_in,paste(sqli,collapse=" "))
 
       #mask NA values from gridmetrics
-      if(is.na(set9999[1]) ){ dati[dati[,1] == -9999 ,1] = set9999[1] }
-
+      if(!is.null(set9999)){
+        dati[dati[,1] == -9999 ,1] = set9999[1]
+      }
       #update raster values
       r0[cells_in] = dati[,1]
 
@@ -272,11 +274,16 @@ sqlite_to_raster = function(
     dati = DBI::dbGetQuery(db_in,paste(sqli,collapse=" "))
 
     #set -9999 values to NA
-    if(is.na(set9999[1]) ){
-      idx_9999 = dati[,1] == -9999
-      idx_9999[is.na(idx_9999)] = F
-      dati[idx_9999,1] = set9999[1]
+    if(!is.null(set9999[1])){
+      dati[dati[,1] == -9999 ,1] = set9999[1]
     }
+
+    # if(is.na(set9999[1]) ){
+    #   idx_9999 = dati[,1] == -9999
+    #   idx_9999[is.na(idx_9999)] = F
+    #   dati[idx_9999,1] = set9999[1]
+    # }
+
 
     #assign new values
     ri[get("cells_in",envir = .GlobalEnv)] = dati[,1]

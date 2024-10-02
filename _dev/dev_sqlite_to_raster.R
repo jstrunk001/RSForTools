@@ -12,6 +12,7 @@
 #'Revision History
 #' \tabular{ll}{
 #'1.0 \tab 3/16/2020 Function created \cr
+#'1.0 \tab 8/16/2024 remove col_test argument - now handled while reading csvs \cr
 #'}
 #'
 #'@author
@@ -22,6 +23,7 @@
 #'@param tb_gm which table has gridmetrics data
 #'@param colsxy  names of xy columns
 #'@param cols2Raster which columns to grab
+#@param col_test use this column to identify pixels with zero returns
 #'@param format  raster formate  e.g. .tif , .img etc
 #'@param dirOut  where to export rasters
 #'@param raster_prefix give a name to rasters for id purposes
@@ -68,7 +70,7 @@ sqlite_to_raster = function(
   ,tb_gm="gm"
   ,colsxy = c("center_x","center_y")
   ,cols2Raster = colsSomeX() # or colsAllX()
-  ,coltest = "total_all_returns"
+  #,col_test = "total_all_returns"
   ,res=c(NA,NA)
   ,format = ".img"
   ,dirOut = "E:\\projects\\2017_NAIP\\rasters\\"
@@ -76,9 +78,8 @@ sqlite_to_raster = function(
   ,wkt2 = NA
   ,nproc = 4
   ,doDebug=F
-  ,debugRows = 5000000
-  ,set9999 = c(NA,-9999, 0)
-
+  ,debugRows = 500000
+  ,set9999 = c(0,NA,-9999)
   ,sfmask=NA
   #,skipExisting =T
 ){
@@ -90,35 +91,56 @@ sqlite_to_raster = function(
   }
 
   #setup output directory
-  if(!dir.exists(dirOut)) dir.create(dirOut)
+  if(!dir.exists(dirOut)) dir.create(dirOut, recursive=T)
    gc()
 
 
    options(scipen=10E6)
 
   #get xy to make base raster
-    #sql_xy = paste("select", paste(c(paste(colsxy,paste(" = round(",colsxy,")")), coltest ), collapse=" , "),"from",tb_gm,"where", colsxy[1],"NOT NULL and 'total.all.returns' > 0")
-    sql_xy = paste("select", paste(c(colsxy,coltest) , collapse=" , "), "from",tb_gm,"where", colsxy[1],"NOT NULL and total_all_returns > 0")
+    #sql_xy = paste("select", paste(c(paste(colsxy,paste(" = round(",colsxy,")")), col_test ), collapse=" , "),"from",tb_gm,"where", colsxy[1],"NOT NULL and 'total.all.returns' > 0")
+
+  #make generic sql script
+    sql_all = c("select", "REPLACE_ME", paste("from",tb_gm,"where", colsxy[1],"NOT NULL"))
+
+  #add filter for points inside of extent of interest
+    if("sf" %in% class(sfmask)){
+      bbxsf = sf::st_bbox(sfmask)
+      where_xy = paste("and",colsxy[1],">=",floor(bbxsf[1]), "and" , colsxy[1],"<=",ceiling(bbxsf[3]),"and"
+                       ,colsxy[2],">=",floor(bbxsf[2]), "and" , colsxy[2],"<=",ceiling(bbxsf[4]))
+      sql_all = c(sql_all, where_xy)
+
+    }
 
     #get all coordinates for gridmetrics rasters
-    if(doDebug) xy = dbGetQuery(db_in,paste(sql_xy,"limit",debugRows))
-    else xy = dbGetQuery(db_in , sql_xy )
+    sql_xy = sql_all
+    sql_xy[2] = paste(c(colsxy) , collapse=" , ")
+    if(doDebug) sql_xy = c(sql_xy,paste("limit",debugRows,collapse=" "))
+    xy = dbGetQuery(db_in , paste(sql_xy,collapse=" ") )
+
+    #debugging stuff
+    if(F){
+      qry_test =  paste("select * from gm where center_x NOT NULL and center_x = 0 limit 1")
+      test = dbGetQuery(db_in,qry_test)
+    }
 
     #round off coordinates
     xy[,colsxy] = round(xy[,colsxy])
+    xy[,3]=1
 
     #convert xy to rasters
-    r0 = terra::rast(xy, type="xyz", crs=wkt2)
+    r0 = terra::rast(xy,  type="xyz", crs=wkt2)
 
     #get cell ids - doesn't work on NA raster
     cells_in = terra::cellFromXY(r0,xy=xy[,colsxy])
 
     #create binary mask
     if("sf" %in% class(sfmask)){
+       sfmask_in = sf::st_transform(sfmask, sf::st_crs(r0))
        #add 1 within polygon mask extent, leave everything else the same
        mask_in = r0
        mask_in[1:terra::ncell(mask_in)] = 1
-       mask_in = terra::mask(mask_in,mask=sfmask,inverse=F,updatevalue=NA)
+       mask_in1 = terra::mask(mask_in,mask=sfmask_in,inverse=F,updatevalue=NA)
     }
 
 
@@ -129,26 +151,31 @@ sqlite_to_raster = function(
     for(i in 1:length(cols2Raster)){
 
       print(paste("start:",cols2Raster[i],"at",Sys.time()))
-      if(doDebug) dati = dbGetQuery(db_in,paste("select",cols2Raster[i],"from",tb_gm,"limit",debugRows))
-      if(!doDebug)       dati = dbGetQuery(db_in,paste("select",cols2Raster[i],"from",tb_gm,"where", colsxy[1],"NOT NULL and 'total_all_returns' > 0"))
+      sqli = sql_all
+      sqli[2] = cols2Raster[i]
+      if(doDebug) sqli = c(sqli,paste("limit",debugRows,collapse=" "))
+      dati = dbGetQuery(db_in,paste(sqli,collapse=" "))
 
       #mask NA values from gridmetrics
-      if(is.na(set9999[1]) ){ dati[dati[,1] == -9999 ,1] = set9999[1] }
-
+      if(!is.null(set9999)){
+        dati[dati[,1] == -9999 ,1] = set9999[1]
+      }
       #update raster values
       r0[cells_in] = dati[,1]
 
       #mask outside polygon
-      if("sf" %in% class(sfmask)) r0 = r0*mask_in
+      if("sf" %in% class(sfmask_in)) r0 = r0*mask_in
 
       #write if not masked
       outi = file.path(dirOut,paste(raster_prefix,cols2Raster[i],format,sep=""))
-      terra::writeRaster(r0,outi,overwrite=TRUE)
+      names(r0) = cols2Raster[i]
+      terra::writeRaster(r0,filename=outi,overwrite=TRUE)
 
       #provide
       print(paste("complete:",cols2Raster[i],"at",Sys.time()))
 
     }# end for
+
   }#end if
 
   #close database connection, new connections will be formed in each thread
@@ -170,19 +197,21 @@ sqlite_to_raster = function(
     clus_in = parallel::makeCluster(nproc)
 
     #export objects to parallel environment and prepare that environment
-    parallel::clusterExport(clus_in, varlist=list("xy","db","cells_in","wkt2","path_temp_rast"), envir = environment())
-    parallel::clusterEvalQ(clus_in, { rExt = terra::rast(path_temp_rast) })
+    parallel::clusterExport(clus_in, varlist=list("db","cells_in","wkt2","path_temp_rast"), envir = environment())
+    #parallel::clusterEvalQ(clus_in, { rExt = terra::rast(path_temp_rast) })
 
     #export optional mask to parallel environment
     if("sf" %in% class(sfmask)){
       #write mask to disk
       path_temp_mask = file.path(dirOut,"temp_mask.tif")
-      terra::writeRaster(mask_in, path_temp_mask , overwrite=TRUE)
+      terra::writeRaster(mask_in1, path_temp_mask , overwrite=TRUE)
 
       #load in each cluster
-      parallel::clusterExport(clus_in, varlist=list("path_temp_mask"), envir = environment())
-      parallel::clusterEvalQ(clus_in, { maskExt = terra::rast(path_temp_mask) })
+      #parallel::clusterExport(clus_in, varlist=list("path_temp_mask"), envir = environment())
+      #parallel::clusterEvalQ(clus_in, { maskExt = terra::rast(path_temp_mask) })
     }
+
+
 
     #read from db and write to disk in parallel
     parallel::parLapplyLB( clus_in
@@ -199,7 +228,26 @@ sqlite_to_raster = function(
                  #, wkt2 = wkt2
                  , colsxy = colsxy
                  , doMask = "sf" %in% class(sfmask)
+                 , path_template = path_temp_rast
+                 , sql_all = sql_all
                  )
+
+   # if(F)     lapply(
+   #                cols2Raster
+   #               , .fn_proc
+   #               , db = db
+   #               , set9999=set9999
+   #               , dirOut=dirOut
+   #               , raster_prefix=raster_prefix
+   #               , format=format
+   #               , doDebug=doDebug
+   #               , debugRows=debugRows
+   #               , tb_gm = tb_gm
+   #               #, wkt2 = wkt2
+   #               , colsxy = colsxy
+   #               , doMask = "sf" %in% class(sfmask)
+   #               , path_template = path_temp_rast
+   #               )
 
     #delete temporary processing rasters
     unlink(path_temp_rast)
@@ -211,26 +259,42 @@ sqlite_to_raster = function(
 }
 
 #function to process rasters
-  .fn_proc=function(nm,set9999, db,dirOut,raster_prefix,format,doDebug, debugRows,tb_gm, colsxy, doMask){
+  .fn_proc=function(nm, path_template,set9999, db,dirOut,raster_prefix,format,doDebug, debugRows,tb_gm, colsxy, doMask, sql_all){
 
     #get base raster
-    ri = get("rExt",envir = .GlobalEnv)
-    if(doMask) maski = get("maskExt",envir = .GlobalEnv)
+    ri = terra::rast(path_template)
+
     # #connect to dabase
     db_in = DBI::dbConnect(RSQLite::SQLite(), db)
 
-    #read and prep data
-    if(doDebug) dati = RSQLite::dbGetQuery(db_in,paste("select",nm,"from",tb_gm,"limit",debugRows))
-    if(!doDebug) dati = RSQLite::dbGetQuery(db_in,paste("select",nm,"from",tb_gm,"where", colsxy[1],"NOT NULL and 'total_all_returns' > 0"))
+    #build sql statement and get data
+    sqli = sql_all
+    sqli[2] = nm
+    if(doDebug) sqli = c(sqli,paste("limit",debugRows,collapse=" "))
+    dati = DBI::dbGetQuery(db_in,paste(sqli,collapse=" "))
 
     #set -9999 values to NA
-    if(is.na(set9999[1]) ){ dati[dati[,1] == -9999 ,1] = set9999[1] }
+    if(!is.null(set9999[1])){
+      dati[dati[,1] == -9999 ,1] = set9999[1]
+    }
+
+    # if(is.na(set9999[1]) ){
+    #   idx_9999 = dati[,1] == -9999
+    #   idx_9999[is.na(idx_9999)] = F
+    #   dati[idx_9999,1] = set9999[1]
+    # }
+
 
     #assign new values
     ri[get("cells_in",envir = .GlobalEnv)] = dati[,1]
+    names(ri) = nm
 
     #mask if needed
-    if(doMask) ri = ri*maski
+    if(doMask){
+      path_temp_mask = file.path(dirOut,"temp_mask.tif")
+      maski = terra::rast(path_temp_mask)
+      ri = ri*maski
+    }
 
     #write to file
      outi = file.path(dirOut,paste(raster_prefix,nm,format,sep=""))

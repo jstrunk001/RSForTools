@@ -20,7 +20,7 @@
 #' \tabular{ll}{
 #'1.0 \tab 1/18/2018 header added \cr
 #'1.1 \tab 1/21/2021 parallel writes enabled \cr
-#'1.2 \tab 08/16/2024 improve NA handling, enable intensity, topo, strata datasets, add col_test argument \cr
+#'1.2 \tab 08/16/2024 improve NA handling, enable intensity, topo, strata datasets \cr
 #'}
 #'
 #'@author
@@ -85,7 +85,7 @@ csv_to_sqlite=function(
                        ,use_col_classes=T
                        ,ncore = 4
                        ,dir_status = file.path(csv_folder, "progress_tracking")
-                       ,col_test = c("total_return_count_above_1_00","total_return_count_above_2_00","total_return_count_above_3_00","total_return_count_above_4_00","total_return_count_above_5_00","total_return_count_above_6_00")
+                       ,col_test = c("total_return_count_above_6_00","total_return_count_above_2_00")
 
                        ){
 
@@ -226,6 +226,7 @@ csv_to_sqlite=function(
 
     db_in_i = get("dbGlobal", envir = .GlobalEnv)
 
+
     if(use_col_classes) dati=try(read.csv(csv_file_i,colClasses = col_classes))
     if(!use_col_classes) dati=try(read.csv(csv_file_i))
 
@@ -237,10 +238,9 @@ csv_to_sqlite=function(
 
       #filter off cells without any points
       if(!is.na(col_test[1])){
-        cols_in = col_test %in% names(dati)
-        if(sum(cols_in) > 0){
-          col_test_in = col_test[cols_in][1]
-          dati=dati[ dati[,col_test_in] > -10 , ]
+        col_test_in = col_test[col_test %in% names(dati)][1]
+        if(length(col_test_in) > 0){
+           dati=dati[ dati[,col_test_in] > -10 , ]
         }
       }
 
