@@ -127,16 +127,20 @@ project_create=function(
     warning("tile size not a multiple of pixel size, tile size set to ", tile_size)
   }
 
-  #inventory las and dtms
-  if(do_scan_las) scan_las(project=project_las, project_year=las_year, dir_las=dir_las, dir_out=configuration_path, create_polys=T , recursive = recurse_las , wkt2 = wkt2)
-  print("scan_las");print(Sys.time())
-  #if(do_scan_dtms) scan_dtm(project=project_dtm, project_year=dtm_year,dir_dtm=dir_dtm, dir_out=configuration_path, create_polys=T , recursive = recurse_dtm , wkt2 = wkt2)
-  if(do_scan_dtms) scan_dtm(project=project_dtm, project_year=dtm_year,dir_dtm=dir_dtm, dir_out=configuration_path , recursive = recurse_dtm , wkt2 = wkt2)
-  print("scan_dtm");print(Sys.time())
+  #test input arguments
+    #file names
+    path_dtm_proj=paste(configuration_path,"/manage_dtm.gpkg",sep="")
+    path_las_proj=paste(configuration_path,"/manage_las.gpkg",sep="")
+    #tests
+    if(!file.exists(path_las_proj )) do_scan_las = T
+    if(!file.exists(path_dtm_proj )) do_scan_dtm = T
 
-  #file names
-  path_dtm_proj=paste(configuration_path,"/manage_dtm.gpkg",sep="")
-  path_las_proj=paste(configuration_path,"/manage_las.gpkg",sep="")
+  #inventory las and dtms
+    if(do_scan_las) scan_las(project=project_las, project_year=las_year, dir_las=dir_las, dir_out=configuration_path, create_polys=T , recursive = recurse_las , wkt2 = wkt2)
+    print("scan_las");print(Sys.time())
+    #if(do_scan_dtms) scan_dtm(project=project_dtm, project_year=dtm_year,dir_dtm=dir_dtm, dir_out=configuration_path, create_polys=T , recursive = recurse_dtm , wkt2 = wkt2)
+    if(do_scan_dtms) scan_dtm(project=project_dtm, project_year=dtm_year,dir_dtm=dir_dtm, dir_out=configuration_path , recursive = recurse_dtm , wkt2 = wkt2)
+    print("scan_dtm");print(Sys.time())
 
   #read in las and dtm polygons
   las_polys = sf::st_read(dsn = path_las_proj,"las_polys")
