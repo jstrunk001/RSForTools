@@ -56,16 +56,14 @@ scan_dtm=function(
   ,recursive = F
   ,pattern="[.](dtm|tif|img)$"
   ,notes=""
-  ,create_polys=T
   ,update = T
   ,return = F
   ,debug=F
 
 ){
 
-
   #can only
-  if(length(dir_out)>1) stop("length of \"dir_out\" greater than 1 - please specify a single output directory")
+  dir_out=dir_out[1]
 
   require("uuid")
   require("RSQLite")
@@ -76,11 +74,10 @@ scan_dtm=function(
   if(length(files_dtm)==0) stop("'scan_dtm' argument dir_dtm is not a directory or is empty")
   if(debug) files_dtm = sample(files_dtm,50)
 
-
   #prepare / read project_id file
-  project_id_csv=file.path(dir_out,"project_id.csv")
-  dtm_id_csv=file.path(dir_out,"dtm_id.csv")
-  dtm_gpkg=file.path(dir_out,"manage_dtm.gpkg")
+  project_id_csv = file.path(dir_out,"project_id.csv")
+  dtm_id_csv = file.path(dir_out,"dtm_id.csv")
+  dtm_gpkg = file.path(dir_out,"manage_dtm.gpkg")
 
   #create out directory if missing
   if(!dir.exists(dir_out)) dir.create(dir_out,recursive=T)
@@ -89,25 +86,21 @@ scan_dtm=function(
   if(!update){
     unlink(dtm_gpkg)
   }
+
   con_gpkg = dbConnect(RSQLite::SQLite(), dtm_gpkg)
   tables_gpkg = dbListTables(con_gpkg)
 
   #Test for files
-  #exist_dir_out=dir.exists(dir_out)
-  exist_project_id_csv=file.exists(project_id_csv)
-  exist_dtm_id_csv=file.exists(dtm_id_csv)
-
+  exist_project_id_csv = file.exists(project_id_csv)
+  exist_dtm_id_csv = file.exists(dtm_id_csv)
   exist_project_id_gpkg = "project_id" %in% tables_gpkg
-  exist_dtm_id_gpkg = "dtm_id" %in% tables_gpkg
   exist_dtm_ply_gpkg = "dtm_polys" %in% tables_gpkg
 
   #if(exist_project_id_csv){
   if(exist_project_id_gpkg){
-
-    #project_id_df=read.csv(project_id_csv)
     project_id_df = dbReadTable( con_gpkg , "project_id" , stringsAsFactors = F )
-
-  }else{
+  }
+  if(!exist_project_id_gpkg){
 
     #make fresh project id table
     project_id_df=data.frame(
@@ -117,7 +110,7 @@ scan_dtm=function(
       ,load_date=proc_date
       ,file_path=dir_dtm #paste(dir_dtm,collapse=",")
       ,notes=notes
-      ,wkt2=wkt2
+      #,wkt2=wkt2
     )
 
     #write to file
@@ -126,13 +119,19 @@ scan_dtm=function(
 
   }
 
+  #close database to prepare to write spatial data
+  dbDisconnect(con_gpkg)
+
   #prepare repository for dtm headers
-  if(exist_dtm_id_gpkg){
-    dtm_id_df = dbReadTable(con_gpkg , "dtm_id" , stringsAsFactors = F)
-  }else{
+  if(exist_dtm_ply_gpkg){
+    dtm_id_df = sf::st_read(dtm_gpkg , "dtm_poly" , stringsAsFactors = F)
+  }
+  if(!exist_dtm_ply_gpkg){
     dtm_id_df = data.frame()
   }
-  proj_id=project_id_df[1,"project_id"]
+
+  #get id for this project
+  this_proj_id=project_id_df[1,"project_id"]
 
   #write little disclaimer / meta file to folder e.g. what is this crap in this folder
   disclaimer="This folder contains files used to inventory dtm files."
@@ -140,86 +139,94 @@ scan_dtm=function(
   writeLines(disclaimer,disclaimer_txt)
 
   #check if dtm files exist
-  names_dtm=basename(files_dtm)
+  names_dtm = basename(files_dtm)
   names_dtm_exist = names_dtm %in% dtm_id_df$file_name
   dtm_update = sum(!names_dtm_exist) > 0
 
+  #create template for headers
+  template_header = read.csv(text="dtm_id,project_id,project,project_year,format,load_date")
+
   #update dtms
-  if(dtm_update){
+  if(dtm_update ){
 
     #identify missing records
     files_dtm=files_dtm[!names_dtm_exist]
+    template_header[1:length(files_dtm),"dtm_id"] = sapply(1:length(files_dtm),function(x)UUIDgenerate())
 
-    #get .dtm headers
+    #get fusion dtm headers
     is_dtm = grepl("[.]dtm$",files_dtm)
     if(sum(is_dtm ) > 0){
 
-      headers_dtm = read_dtm_header(files_dtm[is_dtm])
-      headers_dtm[,"min_x"]=headers_dtm[,"ll_x"]
-      headers_dtm[,"min_y"]=headers_dtm[,"ll_y"]
-      headers_dtm[,"max_x"]=headers_dtm[,"min_x"]+headers_dtm[,"n_cols"]*headers_dtm[,"col_spacing"]
-      headers_dtm[,"max_y"]=headers_dtm[,"min_y"]+headers_dtm[,"n_rows"]*headers_dtm[,"row_spacing"]
-      headers_dtm[,"ll_x"]=NULL
-      headers_dtm[,"ll_x"]=NULL
+      dtm_temp = read_dtm_header(files_dtm[is_dtm])
 
-    } else {
-      headers_dtm = read.csv(text="project_id")
+      #update with separate function like terra rasters
+      headers_dtm = template_header
+      headers_dtm[,"min_x"] = dtm_temp[,"ll_x"]
+      headers_dtm[,"min_y"] = dtm_temp[,"ll_y"]
+      headers_dtm[,"max_x"] = dtm_temp[,"min_x"]+dtm_temp[,"n_cols"]*dtm_temp[,"col_spacing"]
+      headers_dtm[,"max_y"] = dtm_temp[,"min_y"]+dtm_temp[,"n_rows"]*dtm_temp[,"row_spacing"]
+      headers_dtm[,"n_cols"] = dtm_temp[,"n_cols"]
+      headers_dtm[,"n_rows"] = dtm_temp[,"n_rows"]
+      headers_dtm[,"resx"] = dtm_temp[,"col_spacing"]
+      headers_dtm[,"resy"] = dtm_temp[,"row_spacing"]
+      polys_dtm = bbox2polys(headers_dtm, wkt2 = wkt2)
+
+      polys_dtm$format="fusion"
+
     }
-    #get raster headers
+    if(sum(is_dtm ) == 0){
+      polys_dtm = template_header[0,]
+    }
+
+    #get raster headers using terra
     if(sum(!is_dtm ) > 0){
-      headers_rast = plyr::rbind.fill(lapply(files_dtm[!is_dtm],.read_rast_header))
-    }else{
-      headers_rast = read.csv(text="project_id")
+      dtm_temp = plyr::rbind.fill(lapply(files_dtm[!is_dtm],.read_rast_header))
+      polys_rast = data.frame(template_header,dtm_temp)
+      polys_rast$format="terra"
+    }
+    if(sum(!is_dtm ) == 0){
+      polys_rast = template_header[0,]
     }
 
     #merge .dtm and raster headers
-    headers=plyr::rbind.fill(headers_dtm,headers_rast)
+    headers = rbind( polys_dtm , polys_rast )
 
     #prep data for database
-    headers[,"project_id"]=proj_id
-    headers[,"project"]=project
-    headers[,"project_year"]=project_year
-    headers[,"dtm_id"]=sapply(1:nrow(headers),function(x)UUIDgenerate())
-    headers[,"file_name"]=basename(files_dtm)
-    headers[,"file_path"]=files_dtm
-    headers[,"load_date"]=as.character(proc_date)
-    headers[,"notes"]=notes
+    headers[,"project_id"] = this_proj_id
+    headers[,"project"] = project
+    headers[,"project_year"] = project_year
+    headers[,"dtm_id"] = sapply(1:nrow(headers),function(x)UUIDgenerate())
+    headers[,"file_name"] = basename(files_dtm)
+    headers[,"file_path"] = files_dtm
+    headers[,"load_date"] = as.character(proc_date)
+    headers[,"notes"] = notes
+
+    #merge .dtm and raster headers
+    headers_sf = sf::st_as_sf(headers)
 
     #override wkt2 from rasters - especially .dtm and rasters without projections
-    if(!is.na(wkt2)) headers[,"wkt2"] = wkt2
+    if(!is.na(wkt2)) sf::st_crs(headers_sf ) = wkt2
 
     #merge old and updated dtms
     if(nrow(dtm_id_df) > 0){
-      dtm_id_df=plyr::rbind.fill(headers,dtm_id_df[,names(headers)[names(headers)%in% names(dtm_id_df)]])
-      dtm_id_df$geometry=NULL
-    }else{
-      dtm_id_df = headers
+      dtm_id_sf=rbind(headers_sf,dtm_id_df[,names(headers)[names(headers)%in% names(dtm_id_df)]])
     }
+    if(nrow(dtm_id_df) == 0){
+      dtm_id_sf = headers_sf
+    }
+    #create df version without geometry
+    dtm_id_df = as.data.frame(dtm_id_sf)
+    dtm_id_df$geometry=NULL
 
-  }
-
-  dbDisconnect(con_gpkg)
-
-  if(create_polys){
-
-    wkt2match = length(unique(dtm_id_df$wkt2))==1
-    if(!wkt2match) warning("scan_dtm, create_polys=T: there are DTMS with different projections in inputs")
-
-    #create sf extent polygons
-    ply_exts = bbox2polys(dtm_id_df, wkt2 = wkt2)
-
-    #save outputs
-    #currently force overwrite of existing tables
+    #write results in various forms
+    write.csv(dtm_id_df , dtm_id_csv )
     polys_rds=paste(dir_out,"dtm_polys.rds",sep="")
-    try(sf::st_write(obj = ply_exts , dsn = dtm_gpkg , layer = "dtm_polys", driver="GPKG" , append=FALSE ))
-    try(saveRDS(ply_exts,polys_rds))
+    try(saveRDS(dtm_id_sf,polys_rds))
+    try(sf::st_write(obj = dtm_id_sf , dsn = dtm_gpkg , layer = "dtm_polys", driver="GPKG" , append=FALSE ))
 
   }
-   #write tabular results - after creating geospatial database
-    write.csv( dtm_id_df , dtm_id_csv )
-    try(sf::st_write(obj = dtm_id_df , dsn = dtm_gpkg , layer = "dtm_id", driver="GPKG" , append=FALSE ))
 
-  if(return) return(list(project_id = project_id_df, dtm_ids = dtm_id_df  , sp_dtms = dtm_polys, sf_dtms = sf_dtms))
+  if(return) return(list( project_id = project_id_df , dtm_ids = dtm_id_df  , sp_dtms = dtm_polys , sf_dtms = sf_dtms ))
 
 }
 

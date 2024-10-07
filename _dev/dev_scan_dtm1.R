@@ -86,6 +86,7 @@ scan_dtm=function(
   if(!update){
     unlink(dtm_gpkg)
   }
+
   con_gpkg = dbConnect(RSQLite::SQLite(), dtm_gpkg)
   tables_gpkg = dbListTables(con_gpkg)
 
@@ -146,7 +147,7 @@ scan_dtm=function(
   template_header = read.csv(text="dtm_id,project_id,project,project_year,format,load_date")
 
   #update dtms
-  if(dtm_update){
+  if(dtm_update ){
 
     #identify missing records
     files_dtm=files_dtm[!names_dtm_exist]
@@ -204,7 +205,7 @@ scan_dtm=function(
     headers_sf = sf::st_as_sf(headers)
 
     #override wkt2 from rasters - especially .dtm and rasters without projections
-    if(!is.na(wkt2)) sf::st_crs = wkt2
+    if(!is.na(wkt2)) sf::st_crs(headers_sf ) = wkt2
 
     #merge old and updated dtms
     if(nrow(dtm_id_df) > 0){
