@@ -24,7 +24,7 @@
 #'@param recursive T/F recurse into dir_dtm subdirectories ?
 #'@param pattern pattern to use in searching for dtm files
 #'@param notes and descriptionn that may be helpful in using a project
-#'@param create_polys output shapefiles of polygon bboxes
+#@param create_polys output shapefiles of polygon bboxes
 #'@param return T/F return objects
 #'
 #'@return
@@ -124,9 +124,9 @@ scan_dtm=function(
 
   #prepare repository for dtm headers
   if(exist_dtm_ply_gpkg){
-    dtm_id_df = sf::st_read(dtm_gpkg , "dtm_poly" , stringsAsFactors = F)
+    dtm_id_df = sf::st_read(dtm_gpkg , "dtm_polys" , stringsAsFactors = F)
   }
-  if(!exist_dtm_ply_gpkg){
+  if(!exist_dtm_ply_gpkg  ){
     dtm_id_df = data.frame()
   }
 

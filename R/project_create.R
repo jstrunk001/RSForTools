@@ -79,8 +79,8 @@ project_create=function(
   ,recurse_dtm = F
   ,recurse_las = F
   ,dir_out="c:/lidar_projects/"
-  ,layer_project = "RSForInvt_prj"
-  ,layer_config = "RSForInvt_config"
+  ,layer_project = "RSTiles"
+  ,layer_config = "RSForTools"
   ,overwrite_project = T
   ,project_dtm="someProject_dtm"
   ,project_las="someProject_las"
@@ -112,7 +112,7 @@ project_create=function(
   requireNamespace("sf")
   requireNamespace("plyr")
 
-  warning("UPDATE ME!!! Allow me to 'update' intersections without complete reset")
+  warning("UPDATE ME!!! Allow me to 'update' intersections without complete reset - i.e., add to spatial extent but keep original tile polygons")
 
   #create project folder
   project_path = dir_out
