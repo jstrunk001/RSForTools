@@ -21,7 +21,7 @@
 #'Revision History
 #' \tabular{ll}{
 #'1.0 \tab 8/15/2022 Create \cr
-#'1.1 \tab date and revisions.. \cr
+#'1.1 \tab 8/15/2022 update Header when clipping \cr
 #'}
 #'
 #'@author
@@ -69,6 +69,7 @@
 													, path_out = NA
 													, start_epoch=1
 													, finish_epoch = NA
+	  	                    , edits = NA
 													, ignore.short.file = T
 													, version_rnx="3.05"
 													, return_rinex = F
@@ -78,7 +79,7 @@
 		if(version_rnx=="3.05" | version_rnx==3.05){
 
 			if(is.na(dir_rinex) & length(path_rinex)==1)
-				.rinex305_clip(path_rinex=path_rinex, dir_out=dir_out, path_out=path_out , start_epoch=start_epoch, finish_epoch=finish_epoch , ignore.short.file=ignore.short.file)
+				.rinex305_clip(path_rinex=path_rinex, dir_out=dir_out, path_out=path_out , start_epoch=start_epoch, finish_epoch=finish_epoch , ignore.short.file=ignore.short.file,edits=edits)
 
 			if(!is.na(dir_rinex) | length(path_rinex)>1){
 
@@ -89,10 +90,12 @@
 					files_rinex = list.files(dir_rinex, pattern="[.]..o",ignore.case=T,full.names=T)
 				}
 
-				#handle vectors of outputs
+				#handle output paths
+			  files_out= NA
 				if(length(path_out)>1){
 					files_out = path_out
-				}else{
+				}
+			  if(!is.na(dir_out)){
 					files_out = file.path(dir_out, basename(files_rinex))
 				}
 
@@ -101,10 +104,13 @@
 					.rinex305_clip
 					, path_rinex = files_rinex
 					, path_out = files_out
-					, MoreArgs = list( start_epoch=start_epoch, finish_epoch=finish_epoch
-					                   , ignore.short.file=ignore.short.file, return_rinex = return_rinex)
-						)
-
+					, MoreArgs = list( start_epoch=start_epoch
+					                  , finish_epoch=finish_epoch
+					                  , ignore.short.file=ignore.short.file
+					                  , return_rinex = return_rinex
+					                  , edits = edits
+						                )
+				)
 			}
 
 
@@ -113,7 +119,7 @@
 
 
 			if(is.na(dir_rinex) & length(path_rinex)==1)
-				.rinex2_clip(path_rinex=path_rinex, dir_out=dir_out, path_out=path_out , start_epoch=start_epoch, finish_epoch=finish_epoch , ignore.short.file=ignore.short.file)
+				.rinex2_clip(path_rinex=path_rinex, dir_out=dir_out, path_out=path_out , start_epoch=start_epoch, finish_epoch=finish_epoch , ignore.short.file=ignore.short.file,edits=edits)
 
 			if(!is.na(dir_rinex) | length(path_rinex)>1){
 
@@ -136,8 +142,12 @@
 					.rinex2_clip
 					, path_rinex = files_rinex
 					, path_out = files_out
-					, MoreArgs = list( start_epoch=start_epoch, finish_epoch=finish_epoch
-					                   , ignore.short.file=ignore.short.file, return_rinex = return_rinex)
+					, MoreArgs = list( start_epoch=start_epoch
+                					  , finish_epoch=finish_epoch
+                					  , ignore.short.file=ignore.short.file
+                					  , return_rinex = return_rinex
+					                  , edits = edits
+					                 )
 						)
 
 			}
@@ -159,6 +169,7 @@
 													, ignore.short.file = T
 													, rinex_txt = NA
 													, return_rinex = F
+	                        , edits = NA
 		){
 
 		if(start_epoch >= finish_epoch) stop("start_epoch should be less than finish_epoch")
@@ -187,20 +198,48 @@
 													if(ignore.short.file) epochs_in[length(epochs_in)] else stop("finish_epoch larger than total epochs in file")  )
 
 
-		#actually slice
+		#slice file and remove subset of epochs
 		rin_clip = rinex_in[c(header_idx , idx_start:idx_finish)]
 
-		#upate header for shortened duration
-		last_time = sprintf("%-60s", paste(c(strsplit(rinex_in[idx_finish],"\\s+")[[1]][2:7],"GPS"),collapse="    "))
+	 #allow header updates - mostly to change record name inside of file
+		if(!is.na(edits[1])){
 
-  	rin_clip_hd = rinex_header_edit(
-  		edits = list(c(id = "TIME OF LAST OBS", value = last_time ) )
-			, rinex_txt = rin_clip
-			, return_rnx=T
-  	)
+    	rin_clip = rinex_header_edit(
+    		edits = edits
+  			, rinex_txt = rin_clip
+  			, return_rnx = T
+    	)
+
+		}
+
+		#update header for shortened duration - update for start
+		if(start_epoch > 1){
+		  #prepare string with new start time
+  		first_time = sprintf("%-60s", paste(c(strsplit(rinex_in[idx_start],"\\s+")[[1]][2:7],"GPS"),collapse="    "))
+
+    	rin_clip = rinex_header_edit(
+    		edits = list(c(id = "TIME OF FIRST OBS", value = first_time ) )
+  			, rinex_txt = rin_clip
+  			, return_rnx = T
+    	)
+
+    }
+		#update header for shortened duration - update for finnish
+		if(length(epochs_in) > idx_finish){
+		  #prepare string with new end time
+  		last_time = sprintf("%-60s", paste(c(strsplit(rinex_in[idx_finish],"\\s+")[[1]][2:7],"GPS"),collapse="    "))
+
+    	rin_clip = rinex_header_edit(
+    		edits = list(c(id = "TIME OF LAST OBS", value = last_time ) )
+  			, rinex_txt = rin_clip
+  			, return_rnx=T
+    	)
+
+		}
+
 
 		#write sliced rinex to file
-		if(!is.na(path_out)) writeLines(	rin_clip_hd,path_out)
+		if(!is.na(path_out)) writeLines(	rin_clip , path_out )
 		if(return_rinex) return(rin_clip_hd)
 
 	}
@@ -215,6 +254,7 @@
 													, rinex_txt = NA
 													, return_rinex = F
 	                        , year2
+	                        , edits
 		){
 
 		if(start_epoch >= finish_epoch) stop("start_epoch should be less than finish_epoch")
@@ -254,11 +294,41 @@
 		#upate header for shortened duration
 		last_time = sprintf("%-60s", paste(c(strsplit(rinex_in[idx_finish],"\\s+")[[1]][2:7],"GPS"),collapse="    "))
 
-  	rin_clip_hd = rinex_header_edit(
-  		edits = list(c(id = "TIME OF LAST OBS", value = last_time ) )
-			, rinex_txt = rin_clip
-			, return_rnx=T
-  	)
+	 #allow header updates - mostly to change record name inside of file
+		if(!is.na(edits[1])){
+
+    	rin_clip = rinex_header_edit(
+    		edits = edits
+  			, rinex_txt = rin_clip
+  			, return_rnx = T
+    	)
+
+		}
+
+		#update header for shortened duration - update for start
+		if(start_epoch > 1){
+		  #prepare string with new start time
+  		first_time = sprintf("%-60s", paste(c(strsplit(rinex_in[idx_start],"\\s+")[[1]][2:7],"GPS"),collapse="    "))
+
+    	rin_clip = rinex_header_edit(
+    		edits = list(c(id = "TIME OF FIRST OBS", value = first_time ) )
+  			, rinex_txt = rin_clip
+  			, return_rnx = T
+    	)
+
+    }
+		#update header for shortened duration - update for finnish
+		if(length(epochs_in) > idx_finish){
+		  #prepare string with new end time
+  		last_time = sprintf("%-60s", paste(c(strsplit(rinex_in[idx_finish],"\\s+")[[1]][2:7],"GPS"),collapse="    "))
+
+    	rin_clip = rinex_header_edit(
+    		edits = list(c(id = "TIME OF LAST OBS", value = last_time ) )
+  			, rinex_txt = rin_clip
+  			, return_rnx=T
+    	)
+
+		}
 
 		#write sliced rinex to file
 		if(!is.na(path_out)) writeLines(	rin_clip_hd,path_out)

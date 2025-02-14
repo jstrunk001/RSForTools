@@ -109,6 +109,7 @@ xy2FIApoly=function(
     sf_dat0 = sf::st_as_sf(df_all,coords=names[c("x","y")])
 
     if(combine_subplots){
+
       #group subplots by plot
       sf_dat1 = dplyr::group_by_at(sf_dat0, .vars=names["plot"])
 

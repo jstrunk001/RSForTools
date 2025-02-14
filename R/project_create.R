@@ -42,8 +42,8 @@
 #'   dir_las="D:\\Box\\VMARS\\Projects\\DAP_evaluation_Meston\\Data\\Tennessee\\lidar_tiles\\"
 #'   ,dir_dtm="D:\\Box\\VMARS\\Projects\\DAP_evaluation_Meston\\Data\\Tennessee\\DTM_fusion\\"
 #'   ,path_gpkg_out="D:\\Box\\VMARS\\Projects\\DAP_evaluation_Meston\\R\\DAP_Lidar_analysis\\RSForInvt\\project\\TNLidar_RSForInvtProject.gpkg"
-#'   ,layer_project = "RSForInvt_prj"
-#'   ,layer_config = "RSForInvt_config"
+#'   ,project_name = "RSForInvt_prj"
+#'   ,layer_processing_tiles = "RSForInvt_config"
 #'   ,overwrite_project = T
 #'   ,project_dtm="lidar_dtm"
 #'   ,project_las="lidar_las"
@@ -79,11 +79,12 @@ project_create=function(
   ,recurse_dtm = F
   ,recurse_las = F
   ,dir_out="c:/lidar_projects/"
-  ,layer_project = "RSTiles"
-  ,layer_config = "RSForTools"
+  ,project_name = "RSForTools"
+  ,layer_processing_tiles = "processing_tiles"
+  ,layer_configuration = "project_settings"
   ,overwrite_project = T
-  ,project_dtm="someProject_dtm"
-  ,project_las="someProject_las"
+  ,project_dtm="dtm"
+  ,project_las="las"
   ,dtm_year="2099"
   ,las_year="2099"
   ,do_scan_dtms=T
@@ -132,7 +133,14 @@ project_create=function(
     path_dtm_proj=paste(configuration_path,"/manage_dtm.gpkg",sep="")
     path_las_proj=paste(configuration_path,"/manage_las.gpkg",sep="")
     #tests
-    if(!file.exists(path_las_proj )) do_scan_las = T
+    if(!file.exists(path_las_proj )){
+      if(!do_scan_las) warning(paste("do_scan_las = F, but the corresponding file", path_las_proj," does not exist. A new one was created."))
+      do_scan_las = T
+    }
+    if(!file.exists(path_dtm_proj )){
+      if(!do_scan_dtm) warning(paste("do_scan_dtm = F, but the corresponding file", path_dtm_proj," does not exist. A new one was created."))
+      do_scan_las = T
+    }
     if(!file.exists(path_dtm_proj )) do_scan_dtm = T
 
   #inventory las and dtms
@@ -271,8 +279,8 @@ project_create=function(
   #create config file and summary
     df_config = data.frame(
       dir_out = configuration_path
-      ,layer_project = layer_project
-      ,layer_config  =  layer_config
+      ,project_name = project_name
+      ,layer_processing_tiles  =  layer_processing_tiles
       ,layer_las_buf = "las_tiles_bfr"
       ,layer_dtm_buf = "dtm_tiles_bfr"
       #,tile_buffer = ts2
@@ -306,9 +314,10 @@ project_create=function(
   #prepare geopackage details
 
     #get output name
-      path_gpkg_out = paste0(configuration_path,"/",layer_project,"_RSprj.gpkg")
+      path_gpkg_out = paste0(configuration_path,"/",project_name,".gpkg")
+
     #write project polygons to FRESH geopackage - overwrite!
-      try(sf::st_write(obj = tiles_coords , dsn = path_gpkg_out , layer = layer_project, driver="GPKG",  append=FALSE ))
+      try(sf::st_write(obj = tiles_coords , dsn = path_gpkg_out , layer = layer_processing_tiles , driver="GPKG",  append=FALSE ))
 
     #write dtm polygons to geopackage
       try(sf::st_write(obj = dtm_polys , dsn = path_gpkg_out , layer = "dtm_tiles", driver="GPKG",  append=FALSE ))
@@ -320,7 +329,7 @@ project_create=function(
 
     #write config table to geopackage
       sqlite_proj = RSQLite::dbConnect(RSQLite::SQLite(), path_gpkg_out)
-      smry_write_err = try(RSQLite::dbWriteTable(sqlite_proj ,layer_config , df_config, overwrite = T))
+      smry_write_err = try(RSQLite::dbWriteTable(sqlite_proj ,layer_configuration , df_config, overwrite = T))
       RSQLite::dbDisconnect(sqlite_proj)
 
   #save RDS object for redundancy

@@ -20,7 +20,7 @@
 #'
 #'Jacob Strunk <Jstrunk@@fs.fed.us>
 #'
-#'@param project_gpkg polygon file of intersections created by project_make() function
+#'@param project_gpkg_path path to geopackage created by project_create
 #'@param n_core number of corest to run process on
 #'@param gridmetrics_path where is gridmetrics.exe (FUSION)
 #'@param heightbreak Height break for cover calculation
@@ -80,10 +80,10 @@
 run_lapis=function(
 
   # proj_polys = NA
-  proj_gpkg_path = NA
-  ,layer_proj_polys = "RSForInvt_prj"
-  ,layer_proj_config = "RSForInvt_config"
-  ,dir_out = "c:/dir_proc/test_project/gridmetrics"
+  project_gpkg_path = NA
+  ,layer_processing_tiles = "processing_tiles"
+  ,layer_configuration = "project_settings"
+  ,dir_out = "c:/dir_proc/test_project/lapis"
   ,n_core = 4
   ,path_lapis = "c:\\lapis\\lapis.exe"
 
@@ -152,7 +152,6 @@ run_lapis=function(
   options(scipen = 999)
 
   requireNamespace("parallel")
-  requireNamespace("raster")
 
   #time stamp for outputs
   proc_time=format(Sys.time(),"%Y%b%d_%H%M%S")
@@ -176,9 +175,9 @@ run_lapis=function(
   # }
 
   #load project
-  if(is.na(proj_gpkg_path ) ) stop("provide path to project: argument proj_gpkg_path ")
-  proj_polys_in = sf::st_read(dsn=proj_gpkg_path , layer = layer_proj_polys )
-  proj_cfg_in = try(sf::st_read(dsn=proj_gpkg_path , layer = layer_proj_config ), silent=T)
+  if(is.na(project_gpkg_path ) ) stop("provide path to project: argument project_gpkg_path ")
+  proj_polys_in = sf::st_read(dsn=project_gpkg_path , layer = layer_processing_tiles )
+  proj_cfg_in = try(sf::st_read(dsn=project_gpkg_path , layer = layer_configuration ), silent=T)
 
   #load the cellsize
   cfg_cellsize = proj_cfg_in$pixel_size
@@ -298,8 +297,9 @@ run_lapis=function(
     #combine command with arguments - clean up white space
     drive_nm = paste0(gsub(":.*","",path_lapis),": &")
     #cmds_call_lapis = paste(drive_nm,"cd",dirname(path_lapis),"&", path_lapis)
-    cmds_call_lapis = paste("cd",dirname(path_lapis),"&", path_lapis)
-    cmds_all = paste(cmds_call_lapis,cmds_bbx, cmds_args_nm_un , cmds_in_out,sep=" ")
+    #cmds_call_lapis = paste0("cd ",dirname(path_lapis),"\n", path_lapis)
+    #cmds_all = paste(cmds_call_lapis,cmds_bbx, cmds_args_nm_un , cmds_in_out,sep=" ")
+    cmds_all = paste(path_lapis, cmds_bbx, cmds_args_nm_un , cmds_in_out,sep=" ")
 
     #get rid of double and triple spaces
     cmds_lapis = gsub("[  ]"," ",gsub("[  ]"," ",cmds_all))
@@ -311,18 +311,18 @@ run_lapis=function(
 
 
     #modify to write out .ini files instead of long command line arguments?
-    if(F){
-      if(is.na(existing_coms[1]) ){
-
-        writeLines(coms,.bs(coms_out))
-
-        for(i in 1:nrow(proj_polys_in)){
-          writeLines(gsub(",","\n",.bs(proj_polys_in[i,"las_file",drop=T])),proj_polys_in[i,"las_txt",drop=T])
-          writeLines(gsub(",","\n",.bs(proj_polys_in[i,"dtm_file",drop=T])),proj_polys_in[i,"dtm_txt",drop=T])
-        }
-        print("create and write list of dtms and las files");print(Sys.time())
-      }
-    }
+    # if(F){
+    #   if(is.na(existing_coms[1]) ){
+    #
+    #     writeLines(coms,.bs(coms_out))
+    #
+    #     for(i in 1:nrow(proj_polys_in)){
+    #       writeLines(gsub(",","\n",.bs(proj_polys_in[i,"las_file",drop=T])),proj_polys_in[i,"las_txt",drop=T])
+    #       writeLines(gsub(",","\n",.bs(proj_polys_in[i,"dtm_file",drop=T])),proj_polys_in[i,"dtm_txt",drop=T])
+    #     }
+    #     print("create and write list of dtms and las files");print(Sys.time())
+    #   }
+    # }
 
     print("set up commands");print(Sys.time())
 
@@ -338,21 +338,27 @@ run_lapis=function(
       if(n_core>1 ){
         print("begin parallel processing");print(Sys.time())
 
-        fn_proc = function(x, dir_out){
+        fn_proc = function(x, dir_out, dir_lapis){
+
+          setwd(dir_lapis)
           file_out = paste0(dir_out,"/lapis_messages_", Sys.getpid(), ".txt")
-          y = try( shell(x,intern=T))
-          write(paste(y, collapse=" \n" ), file=file_out, append=T)
-          gc()
+          y = try( shell(x,intern=F, wait=T))
+          #write(paste(y, collapse=" \n" ), file=file_out, append=T)
+          #write(paste(x, collapse=" \n" ), file=file_out, append=T)
+          #gc()
         }
+
         set.seed(50)
-        clus=parallel::makeCluster(n_core)#,setup_strategy = "sequential")
+        browser()
+        clus_in=parallel::makeCluster(n_core)#,setup_strategy = "sequential")
+        parallel::clusterExport(clus_in, c("path_lapis"),envir=environment())
+        parallel::clusterEvalQ(clus_in, {setwd(dirname(path_lapis) )})
 
-        res=parallel::parLapplyLB( clus , sample( cmds_lapis,length( cmds_lapis)) , fn_proc , dir_out = dir_proc_time );gc()
+        res=parallel::parLapplyLB( clus_in , sample( cmds_lapis,length( cmds_lapis)) , shell )
+        res=parallel::parLapplyLB( clus_in , sample( cmds_lapis,length( cmds_lapis))[1:30] , shell )
+        #res=parallel::parLapplyLB( clus , sample( cmds_lapis,length( cmds_lapis)) , shell , dir_out = dir_proc_time , dir_lapis = dirname(path_lapis) );gc()
+        #res=parallel::parLapplyLB( clus , sample( cmds_lapis,length( cmds_lapis)) , fn_proc , dir_out = dir_proc_time );gc()
 
-        if(F){
-          set.seed(50);res=parallel::parLapplyLB( clus , sample( cmds_lapis,10) , fn_proc , dir_out = dir_proc_time );gc()
-          set.seed(50);res=parallel::parLapplyLB( clus , sample( cmds_lapis,3) , shell );gc()
-        }
         gc();parallel::stopCluster(clus);gc()
 
       }else{

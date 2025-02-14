@@ -62,7 +62,7 @@
 #' )
 #'
 #'
-#'@import DBI RSQLite data.table rgdal rgeos sp raster
+#'@import DBI RSQLite data.table terra
 #'
 #'@export
 #
@@ -130,7 +130,8 @@ project_create=function(
   #inventory las and dtms
   if(do_scan_las) scan_las(project=project_las, project_year=las_year, dir_las=dir_las, dir_out=project_path, create_polys=T , recursive = recurse_las , wkt2 = wkt2)
   print("scan_las");print(Sys.time())
-  if(do_scan_dtms) scan_dtm(project=project_dtm, project_year=dtm_year,dir_dtm=dir_dtm, dir_out=project_path, create_polys=T , recursive = recurse_dtm , wkt2 = wkt2)
+  browser()
+  if(do_scan_dtms) scan_dtm(project=project_dtm, project_year=dtm_year,dir_dtm=dir_dtm, dir_out=project_path , recursive = recurse_dtm , wkt2 = wkt2)
   print("scan_dtm");print(Sys.time())
 
   #file names
