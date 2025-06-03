@@ -11,6 +11,7 @@ catalog1(
   filter = "",
   chunk_size = 0,
   chunk_buffer = 30,
+  verbose = FALSE,
   ...
 )
 }
@@ -56,5 +57,5 @@ Revision History
 
 }
 \author{
-Jacob Strunk <something@something.com>
+Jean Romaine and borrowed / modified by Jacob Strunk <something@something.com>
 }

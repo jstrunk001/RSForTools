@@ -99,7 +99,6 @@ xy2FIApoly=function(
 
   df_all = plyr::rbind.fill(idxy,dat2,dat3,dat4)
 
-
   if(create_polys){
 
     requireNamespace("sf")

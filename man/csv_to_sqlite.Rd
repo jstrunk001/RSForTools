@@ -9,6 +9,7 @@ csv_to_sqlite(
   csv_folder,
   tb_summary = "gm_summary",
   tb_csv = "gm",
+  csv_pattern = ".*elevation.*[.]csv",
   project = "naip_2015",
   resolution = "66",
   units = "feet",
@@ -18,7 +19,10 @@ csv_to_sqlite(
   n_load = NA,
   use_col_classes = T,
   ncore = 4,
-  dir_status = file.path(csv_folder, "progress_tracking")
+  dir_status = file.path(csv_folder, "progress_tracking"),
+  col_test = c("total_return_count_above_1_00", "total_return_count_above_2_00",
+    "total_return_count_above_3_00", "total_return_count_above_4_00",
+    "total_return_count_above_5_00", "total_return_count_above_6_00")
 )
 }
 \arguments{
@@ -27,6 +31,8 @@ csv_to_sqlite(
 \item{tb_summary}{output name of summary table of csv files}
 
 \item{tb_csv}{table to dump csv files into}
+
+\item{csv_pattern}{pattern used by list.files to find relevant files. Only load one gridmetrics file type at a time c(".*elevation.*[.]csv",".*intensity.*[.]csv",".*topo.*[.]csv")}
 
 \item{project}{name of project}
 
@@ -47,6 +53,8 @@ csv_to_sqlite(
 \item{ncore}{number of parallel threads to use at one time, ssds can handle many}
 
 \item{dir_status}{a way to report the status of the parallel threads, there is an output file for each input csv with at TRUE or FALSE in the name for write status}
+
+\item{col_test}{test for -9999 in this column, usually the 4th column in FUSION outputs. This indicates that no points were present in this cell.}
 
 \item{db}{sqlite database connection}
 }
@@ -69,6 +77,7 @@ Revision History
 \tabular{ll}{
 1.0 \tab 1/18/2018 header added \cr
 1.1 \tab 1/21/2021 parallel writes enabled \cr
+1.2 \tab 08/16/2024 improve NA handling, enable intensity, topo, strata datasets, add col_test argument \cr
 }
 }
 \examples{

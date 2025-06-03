@@ -10,11 +10,12 @@ project_create(
   recurse_dtm = F,
   recurse_las = F,
   dir_out = "c:/lidar_projects/",
-  layer_project = "RSForInvt_prj",
-  layer_config = "RSForInvt_config",
+  project_name = "RSForTools",
+  layer_processing_tiles = "processing_tiles",
+  layer_configuration = "project_settings",
   overwrite_project = T,
-  project_dtm = "someProject_dtm",
-  project_las = "someProject_las",
+  project_dtm = "dtm",
+  project_las = "las",
   dtm_year = "2099",
   las_year = "2099",
   do_scan_dtms = T,
@@ -38,13 +39,35 @@ project_create(
 
 \item{dir_dtm}{where are FUSION dtm files - eventuall enable any dtm type (.img, .tif etc)}
 
+\item{recurse_dtm}{recurse into las folder subdirectories}
+
+\item{recurse_las}{recurse into dtm folder subdirectories}
+
+\item{dir_out}{where to place project}
+
+\item{project_name}{project name}
+
+\item{layer_processing_tiles}{name of layer in geopackage to hold processing tile geometry}
+
+\item{layer_configuration}{name of layer in geopackage to hold project configuration informaton}
+
+\item{overwrite_project}{T/F should the original project be overwritten}
+
 \item{project_dtm}{dtm project name}
 
 \item{project_las}{las project name}
 
-\item{dtm_year}{year of dtm files}
+\item{dtm_year}{year of dtm}
 
-\item{las_year}{year of las files}
+\item{las_year}{year of las}
+
+\item{do_scan_dtms}{T/F re-scan dtm files}
+
+\item{do_scan_las}{T/F re-scan las files}
+
+\item{duplicate_las}{c("ignore","remove") - how to handle las tiles with same base names in different directories}
+
+\item{duplicate_dtm}{c("ignore","remove") - how to handle dtm tiles with same base names in different directories}
 
 \item{tile_size}{processing tile size}
 
@@ -52,15 +75,11 @@ project_create(
 
 \item{xmn, xmx, ymn, ymx}{bound box for processing grid}
 
-\item{dir_project}{where to place project}
+\item{wkt2}{CRS projection string in wkt2 format}
 
-\item{project}{project name}
+\item{mask}{sf vector layer that can serve as a mask for analysis}
 
-\item{scan_dtms}{?scan dtm files}
-
-\item{scan_las}{?scan las files}
-
-\item{crs}{projection string}
+\item{return}{T/F return project as an sf object}
 }
 \value{
 <Delete and Replace>
@@ -75,6 +94,7 @@ Scans lidar and dems and finds out where they intersect a project tiling scheme
 Revision History
 \tabular{ll}{
 1.0 \tab 5/07/2020 New package derived from old lasR package \cr
+1.1 \tab 6/03/2024 Various updates including roxygen header \cr
 }
 }
 \examples{
@@ -84,8 +104,8 @@ proj_tn = RSForInvt::project_create(
   dir_las="D:\\\\Box\\\\VMARS\\\\Projects\\\\DAP_evaluation_Meston\\\\Data\\\\Tennessee\\\\lidar_tiles\\\\"
   ,dir_dtm="D:\\\\Box\\\\VMARS\\\\Projects\\\\DAP_evaluation_Meston\\\\Data\\\\Tennessee\\\\DTM_fusion\\\\"
   ,path_gpkg_out="D:\\\\Box\\\\VMARS\\\\Projects\\\\DAP_evaluation_Meston\\\\R\\\\DAP_Lidar_analysis\\\\RSForInvt\\\\project\\\\TNLidar_RSForInvtProject.gpkg"
-  ,layer_project = "RSForInvt_prj"
-  ,layer_config = "RSForInvt_config"
+  ,project_name = "RSForInvt_prj"
+  ,layer_processing_tiles = "RSForInvt_config"
   ,overwrite_project = T
   ,project_dtm="lidar_dtm"
   ,project_las="lidar_las"
@@ -113,5 +133,5 @@ desired updates:
  add ability to scan fusion dtms and generic raster dtms
 }
 \author{
-Jacob Strunk <Jstrunk@fs.fed.us>
+Jacob Strunk <strunky@gmail.com>
 }

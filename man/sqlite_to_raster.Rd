@@ -14,7 +14,6 @@ sqlite_to_raster(
   tb_gm = "gm",
   colsxy = c("center_x", "center_y"),
   cols2Raster = colsSomeX(),
-  coltest = "total_all_returns",
   res = c(NA, NA),
   format = ".img",
   dirOut = "E:\\\\projects\\\\2017_NAIP\\\\rasters\\\\",
@@ -22,8 +21,8 @@ sqlite_to_raster(
   wkt2 = NA,
   nproc = 4,
   doDebug = F,
-  debugRows = 5e+06,
-  set9999 = c(NA, -9999, 0),
+  debugRows = 5e+05,
+  set9999 = c(0, NA, -9999),
   sfmask = NA
 )
 
@@ -75,6 +74,7 @@ colsFewX(thresh = "6_00")
 Revision History
 \tabular{ll}{
 1.0 \tab 3/16/2020 Function created \cr
+1.0 \tab 8/16/2024 remove col_test argument - now handled while reading csvs \cr
 }
 }
 \examples{

@@ -5,15 +5,14 @@
 \title{scan a directory of dtm files}
 \usage{
 scan_dtm(
-  project = "wa_dtm",
+  project = "some_dtm",
   project_year = "2099",
   wkt2 = NA,
   dir_dtm = "",
-  dir_out = paste0(dir_dtm, "/manage_las/"),
+  dir_out = paste0(dir_dtm, "/manage_dtm/"),
   recursive = F,
   pattern = "[.](dtm|tif|img)$",
   notes = "",
-  create_polys = T,
   update = T,
   return = F,
   debug = F
@@ -24,7 +23,7 @@ scan_dtm(
 
 \item{project_year}{year of lidar project}
 
-\item{wkt2}{set wkt2 projection - new standard}
+\item{wkt2}{set wkt2 projection if not available from dtms}
 
 \item{dir_dtm}{where to find dtm files}
 
@@ -33,8 +32,6 @@ scan_dtm(
 \item{pattern}{pattern to use in searching for dtm files}
 
 \item{notes}{and descriptionn that may be helpful in using a project}
-
-\item{create_polys}{output shapefiles of polygon bboxes}
 
 \item{return}{T/F return objects}
 }

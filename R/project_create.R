@@ -11,27 +11,38 @@
 #'Revision History
 #' \tabular{ll}{
 #'1.0 \tab 5/07/2020 New package derived from old lasR package \cr
+#'1.1 \tab 6/03/2024 Various updates including roxygen header \cr
 #'}
 #'
 #'@author
 #'
-#'Jacob Strunk <Jstrunk@@fs.fed.us>
+#'Jacob Strunk <strunky@@gmail.com>
 
 #'@param dir_las where are las files
 #'@param dir_dtm where are FUSION dtm files - eventuall enable any dtm type (.img, .tif etc)
-#'@param dir_project where to place project
-#'@param project project name
+#'@param recurse_dtm recurse into las folder subdirectories
+#'@param recurse_las recurse into dtm folder subdirectories
+#'@param dir_out where to place project
+#'@param project_name project name
+#'@param layer_processing_tiles name of layer in geopackage to hold processing tile geometry
+#'@param layer_configuration name of layer in geopackage to hold project configuration informaton
+#'@param overwrite_project  T/F should the original project be overwritten
 #'@param project_dtm dtm project name
 #'@param project_las las project name
-#'@param dtm_year year of dtm files
-#'@param las_year year of las files
-#'@param scan_dtms ?scan dtm files
-#'@param scan_las ?scan las files
+#'@param dtm_year year of dtm
+#'@param las_year year of las
+#'@param do_scan_dtms T/F re-scan dtm files
+#'@param do_scan_las T/F re-scan las files
+#'@param duplicate_las c("ignore","remove") - how to handle las tiles with same base names in different directories
+#'@param duplicate_dtm c("ignore","remove") - how to handle dtm tiles with same base names in different directories
 #'@param tile_size processing tile size
 #'@param pixel_size raster pixel size
 #'@param xmn,xmx,ymn,ymx bound box for processing grid
-#'@param crs projection string
-#'
+#'@param wkt2 CRS projection string in wkt2 format
+#'@param mask sf vector layer that can serve as a mask for analysis
+#'@param return T/F return project as an sf object
+
+
 #'@return
 #'  <Delete and Replace>
 #'
@@ -138,10 +149,10 @@ project_create=function(
       do_scan_las = T
     }
     if(!file.exists(path_dtm_proj )){
-      if(!do_scan_dtm) warning(paste("do_scan_dtm = F, but the corresponding file", path_dtm_proj," does not exist. A new one was created."))
+      if(!do_scan_dtms) warning(paste("do_scan_dtms = F, but the corresponding file", path_dtm_proj," does not exist. A new one was created."))
       do_scan_las = T
     }
-    if(!file.exists(path_dtm_proj )) do_scan_dtm = T
+    if(!file.exists(path_dtm_proj )) do_scan_dtms = T
 
   #inventory las and dtms
     if(do_scan_las) scan_las(project=project_las, project_year=las_year, dir_las=dir_las, dir_out=configuration_path, create_polys=T , recursive = recurse_las , wkt2 = wkt2)
